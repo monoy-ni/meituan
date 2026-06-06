@@ -485,7 +485,7 @@ class ActivityPlanningAgent:
             hard_constraints=constraints,
         )
 
-    def chat_with_guidance(self, session_id: str, text: str) -> AgentResponse:
+    def chat_with_guidance(self, session_id: str, text: str, scene_hint: Scene | str | None = None) -> AgentResponse:
         """
         带对话引导的聊天接口 - 实现多轮对话流程
         
@@ -498,19 +498,43 @@ class ActivityPlanningAgent:
 
         latest = self.repository.get_latest_planning(session_id)
         partial_request = latest["request"] if latest else None
+        hinted_scene = self._coerce_scene(scene_hint)
 
         ctx, reply_msg, should_continue = self.dialogue_manager.process_input(
-            session_id, text, partial_request
+            session_id, text, partial_request, hinted_scene
         )
 
         self.repository.add_message(session_id, "user", text)
 
-        if not should_continue and ctx.state == DialogueState.READY_TO_PLAN:
-            response = self.chat(session_id, text)
+        if not should_continue and ctx.state in {DialogueState.READY_TO_PLAN, DialogueState.REFINING_DETAILS}:
+            planning_text = self._guided_planning_text(ctx)
+            result = self.plan(planning_text, partial_request=partial_request, scene_hint=ctx.scene, llm_data={})
+            share_cards = [self.render_share_card(option, result.request) for option in result.options]
+            self.repository.save_planning_result(session_id, result, share_cards)
+            message = reply_msg + "\n\n" + self._planning_message(result)
+            self.repository.add_message(session_id, "assistant", message)
             self.dialogue_manager.mark_options_presented(session_id)
-            return replace(
-                response,
-                message=reply_msg + "\n\n" + response.message,
+            from activity_agent.domain.models import ToolEvent
+
+            dummy_event = ToolEvent(
+                name="guided_chat",
+                input_summary={"text": text[:120], "scene_hint": ctx.scene.value if ctx.scene else None},
+                output_summary={"options": len(result.options), "state": self.get_conversation_state(session_id)},
+                status="ok",
+                duration_ms=0,
+            )
+            return AgentResponse(
+                session_id=session_id,
+                intent=result.route.intent,
+                scene=result.request.scene,
+                message=message,
+                request=result.request,
+                options=result.options,
+                share_cards=share_cards,
+                missing_questions=result.missing_questions,
+                assumptions=result.assumptions,
+                tool_events=[dummy_event],
+                degraded=False,
             )
 
         self.repository.add_message(session_id, "assistant", reply_msg)
@@ -550,3 +574,32 @@ class ActivityPlanningAgent:
         """获取当前对话状态"""
         ctx = self.dialogue_manager.get_or_create_context(session_id)
         return ctx.state.value
+
+    def get_conversation_payload(self, session_id: str, has_options: bool = False) -> dict[str, object]:
+        return self.dialogue_manager.conversation_payload(session_id, has_options)
+
+    def _guided_planning_text(self, ctx: DialogueContext) -> str:
+        user_messages = [message["content"] for message in ctx.messages if message.get("role") == "user"]
+        scene_text = "情侣约会" if ctx.scene == Scene.COUPLE else "朋友局"
+        collected = []
+        if ctx.collected_info.get("mood"):
+            collected.append("想要" + "、".join(ctx.collected_info["mood"]))
+        if ctx.collected_info.get("relationship_stage"):
+            collected.append(str(ctx.collected_info["relationship_stage"]))
+        if ctx.collected_info.get("relationship_goal"):
+            collected.append(str(ctx.collected_info["relationship_goal"]))
+        if ctx.collected_info.get("budget"):
+            collected.append(f"人均{ctx.collected_info['budget']}")
+        if ctx.collected_info.get("time"):
+            collected.append(str(ctx.collected_info["time"]))
+        return "，".join([scene_text, "杭州", *collected, *user_messages])
+
+    def _coerce_scene(self, scene_hint: Scene | str | None) -> Scene | None:
+        if scene_hint is None:
+            return None
+        if isinstance(scene_hint, Scene):
+            return scene_hint
+        try:
+            return Scene(str(scene_hint))
+        except ValueError:
+            return None

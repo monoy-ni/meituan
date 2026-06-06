@@ -1,6 +1,6 @@
 [project]
 name = "activity-planning-agent"
-version = "1.4.0"
+version = "1.5.0"
 description = "Python MVP for Hangzhou local day-itinerary planning, seed providers, booking drafts, and review memory."
 requires-python = ">=3.11"
 dependencies = []

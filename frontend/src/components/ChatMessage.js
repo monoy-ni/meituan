@@ -6,7 +6,7 @@ const ChatMessage = ({ role, content }) => {
   return (
     <div className={`chat-message ${role}`}>
       <div className="message-avatar">
-        {role === 'user' ? '👤' : '🤖'}
+        {role === 'user' ? '你' : 'AI'}
       </div>
       <div className="message-content">
         <div className="message-text">{content}</div>
@@ -16,4 +16,3 @@ const ChatMessage = ({ role, content }) => {
 };
 
 export default ChatMessage;
-

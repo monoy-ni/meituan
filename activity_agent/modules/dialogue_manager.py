@@ -70,7 +70,12 @@ class DialogueManager:
             self.contexts[session_id] = DialogueContext()
         return self.contexts[session_id]
 
-    def _understand(self, text: str, history: list[dict[str, str]] | None = None) -> UserUnderstanding:
+    def _understand(
+        self,
+        text: str,
+        history: list[dict[str, str]] | None = None,
+        scene_hint: Scene | None = None,
+    ) -> UserUnderstanding:
         """
         统一理解入口：尝试 LLM -> 失败则回退规则
         
@@ -82,11 +87,11 @@ class DialogueManager:
             try:
                 understanding = self._understand_with_llm(text, history)
                 if understanding.confidence >= 0.3:
-                    return understanding
+                    return self._apply_scene_context(understanding, text, scene_hint)
             except Exception:
                 pass
         
-        return self._understand_with_rules(text)
+        return self._apply_scene_context(self._understand_with_rules(text, scene_hint), text, scene_hint)
 
     def _understand_with_llm(self, text: str, history: list[dict[str, str]] | None = None) -> UserUnderstanding:
         """使用 LLM 深度理解（统一的 LLM 调用层）"""
@@ -143,36 +148,44 @@ class DialogueManager:
 
         return understanding
 
-    def _understand_with_rules(self, text: str) -> UserUnderstanding:
+    def _understand_with_rules(self, text: str, scene_hint: Scene | None = None) -> UserUnderstanding:
         """降级方案：规则解析（当 LLM 不可用时）"""
         understanding = UserUnderstanding(confidence=0.6)
 
         text_lower = text.lower()
 
-        friends_keywords = ["朋友", "聚聚", "局", "哥们", "姐妹", "同事", "大家", "几个人"]
-        couple_keywords = ["约会", "对象", "女朋友", "男朋友", "ta", "两个人", "纪念日", "惊喜", "浪漫", "暧昧"]
+        friends_keywords = ["朋友", "朋友局", "聚聚", "局", "哥们", "姐妹", "同事", "大家", "几个人"]
+        couple_keywords = [
+            "情侣",
+            "情侣约会",
+            "约会",
+            "对象",
+            "女朋友",
+            "男朋友",
+            "老婆",
+            "老公",
+            "另一半",
+            "ta",
+            "两个人",
+            "纪念日",
+            "惊喜",
+            "浪漫",
+            "暧昧",
+            "约她",
+            "约他",
+            "升温",
+            "老夫老妻",
+        ]
 
         has_friends = any(k in text for k in friends_keywords)
         has_couple = any(k in text_lower for k in couple_keywords)
 
-        if has_couple and not has_friends:
+        if scene_hint is not None:
+            understanding.scene = scene_hint
+        elif has_couple and not has_friends:
             understanding.scene = Scene.COUPLE
         elif has_friends:
             understanding.scene = Scene.FRIENDS
-
-        if understanding.scene == Scene.COUPLE:
-            if "怕尴尬" in text or "第一次" in text or "约她" in text or "约他" in text:
-                understanding.relationship_stage = "暧昧/追求中"
-                understanding.relationship_goal = "降低尴尬"
-            elif "纪念日" in text:
-                understanding.relationship_stage = "纪念日"
-                understanding.relationship_goal = "制造仪式感"
-            elif "修复" in text or "吵架" in text:
-                understanding.relationship_stage = "想修复关系"
-                understanding.relationship_goal = "缓和关系"
-            else:
-                understanding.relationship_stage = "稳定情侣"
-                understanding.relationship_goal = "创造共同体验"
 
         mood_mapping = [
             (["累", "回血", "放松", "解压"], ["回血", "放松"]),
@@ -203,6 +216,44 @@ class DialogueManager:
         }
 
         return understanding
+
+    def _apply_scene_context(
+        self,
+        understanding: UserUnderstanding,
+        text: str,
+        scene_hint: Scene | None = None,
+    ) -> UserUnderstanding:
+        if scene_hint is not None and understanding.scene is None:
+            understanding.scene = scene_hint
+
+        if understanding.scene != Scene.COUPLE:
+            return understanding
+
+        stage, goal = self._infer_couple_relationship(text)
+        if stage and not understanding.relationship_stage:
+            understanding.relationship_stage = stage
+        if goal and not understanding.relationship_goal:
+            understanding.relationship_goal = goal
+
+        if not understanding.relationship_stage:
+            understanding.relationship_stage = "稳定情侣"
+        if not understanding.relationship_goal:
+            understanding.relationship_goal = "创造共同体验"
+
+        return understanding
+
+    def _infer_couple_relationship(self, text: str) -> tuple[str | None, str | None]:
+        if any(word in text for word in ["怕尴尬", "第一次", "约她", "约他", "暧昧", "追求"]):
+            return "暧昧/追求中", "降低尴尬"
+        if any(word in text for word in ["升温", "自然一点", "轻松自然"]):
+            return "暧昧/追求中", "自然升温"
+        if "纪念日" in text:
+            return "纪念日", "制造仪式感"
+        if "修复" in text or "吵架" in text or "道歉" in text:
+            return "想修复关系", "缓和关系"
+        if any(word in text for word in ["老夫老妻", "日常", "稳定", "对象", "女朋友", "男朋友", "老婆", "老公"]):
+            return "稳定情侣", "创造共同体验"
+        return None, None
 
     def _parse_time_window_with_local_time(self, text: str) -> Optional[str]:
         """
@@ -258,6 +309,7 @@ class DialogueManager:
         
         info = ctx.collected_info
         ctx.turn_count += 1
+        last_user_msg = ctx.messages[-1]["content"] if ctx.messages else ""
         
         if ctx.state == DialogueState.INIT:
             if understanding.scene:
@@ -326,15 +378,19 @@ class DialogueManager:
             return "好的，我调整一下方案。", False
 
         if ctx.state == DialogueState.AWAITING_SELECTION:
+            if self._is_adjustment_request(last_user_msg):
+                ctx.state = DialogueState.REFINING_DETAILS
+                return "明白了，我按你的反馈重新收一版方案。", False
+            if self._is_booking_request(last_user_msg):
+                ctx.state = DialogueState.READY_TO_BOOK
+                return "好的，我先帮你整理预约草稿，确认前不会支付或下不可逆订单。", False
             info["selected"] = True
             ctx.state = DialogueState.AWAITING_FEEDBACK
             return "选好了！需要调整什么吗，还是直接帮你预约？", True
 
         if ctx.state == DialogueState.AWAITING_FEEDBACK:
             # 修复：使用 understanding 或最后一条消息
-            last_user_msg = ctx.messages[-1]["content"] if ctx.messages else ""
-            keywords = ["预约", "确定", "下单", "好的", "可以"]
-            if any(kw in last_user_msg for kw in keywords):
+            if self._is_booking_request(last_user_msg):
                 ctx.state = DialogueState.READY_TO_BOOK
                 return "好的，这就帮你安排预约！", False
             else:
@@ -345,6 +401,12 @@ class DialogueManager:
             return "正在处理预订...", False
 
         return "我理解了，让我继续为你规划。", False
+
+    def _is_adjustment_request(self, text: str) -> bool:
+        return any(word in text for word in ["更近", "便宜", "少走路", "改室内", "室内", "加拍照", "拍照", "换", "不要", "太贵", "太累"])
+
+    def _is_booking_request(self, text: str) -> bool:
+        return any(word in text for word in ["预约", "预定", "订", "下单", "确定", "就这个", "帮我订", "帮我定"])
 
     def _friends_opening(self, understanding: UserUnderstanding) -> str:
         base = "帮你安排朋友局没问题！"
@@ -365,6 +427,7 @@ class DialogueManager:
         session_id: str,
         text: str,
         current_request: UserRequest | None = None,
+        scene_hint: Scene | None = None,
     ) -> tuple[DialogueContext, str, bool]:
         """
         处理用户输入，返回更新后的上下文、回复消息、是否需要继续对话
@@ -374,13 +437,60 @@ class DialogueManager:
         ctx = self.get_or_create_context(session_id)
         ctx.messages.append({"role": "user", "content": text})
 
-        understanding = self._understand(text, ctx.messages)
+        effective_scene = scene_hint or ctx.scene or (current_request.scene if current_request else None)
+        understanding = self._understand(text, ctx.messages, effective_scene)
         ctx.understanding = understanding
 
         response, should_continue = self._generate_response(ctx, understanding)
 
         ctx.last_response = response
         return ctx, response, should_continue
+
+    def conversation_payload(self, session_id: str, has_options: bool = False) -> dict[str, object]:
+        ctx = self.get_or_create_context(session_id)
+        return {
+            "state": ctx.state.value,
+            "scene": ctx.scene.value if ctx.scene else None,
+            "turn_count": ctx.turn_count,
+            "should_show_options": has_options or ctx.state in {DialogueState.AWAITING_SELECTION, DialogueState.AWAITING_FEEDBACK, DialogueState.READY_TO_BOOK},
+            "next_step": self._next_step(ctx),
+        }
+
+    def _next_step(self, ctx: DialogueContext) -> str:
+        info = ctx.collected_info
+        if ctx.state == DialogueState.INIT:
+            return "choose_scene"
+        if ctx.state == DialogueState.IDENTIFYING_SCENE:
+            return "choose_scene"
+        if ctx.state == DialogueState.COLLECTING_FRIENDS_CONTEXT:
+            if "mood" not in info:
+                return "ask_mood"
+            if "budget" not in info:
+                return "ask_budget"
+            if "time" not in info:
+                return "ask_time"
+            return "generate_options"
+        if ctx.state == DialogueState.COLLECTING_COUPLE_CONTEXT:
+            if "relationship_stage" not in info:
+                return "ask_couple_feeling"
+            if "budget" not in info:
+                return "ask_budget"
+            if "time" not in info:
+                return "ask_time"
+            return "generate_options"
+        if ctx.state == DialogueState.REFINING_DETAILS:
+            return "regenerate_options"
+        if ctx.state == DialogueState.AWAITING_SELECTION:
+            return "select_option"
+        if ctx.state == DialogueState.AWAITING_FEEDBACK:
+            return "adjust_or_book"
+        if ctx.state == DialogueState.READY_TO_BOOK:
+            return "create_booking_draft"
+        if ctx.state == DialogueState.BOOKING:
+            return "booking"
+        if ctx.state == DialogueState.COMPLETED:
+            return "completed"
+        return "continue"
 
     def mark_options_presented(self, session_id: str) -> None:
         ctx = self.get_or_create_context(session_id)

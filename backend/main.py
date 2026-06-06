@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,8 +15,8 @@ from activity_agent.data.hangzhou_catalog import HANGZHOU_DEMO_VERSION
 from activity_agent.domain import AgentResponse, BookingConfirmation, BookingDraft, PlanOption, TimelineItem, UserRequest
 
 
-BACKEND_VERSION = "1.4.0"
-FRONTEND_TARGET_VERSION = "0.5.0"
+BACKEND_VERSION = "1.5.0"
+FRONTEND_TARGET_VERSION = "0.6.0"
 
 app = FastAPI(title="杭州本地一日主题局 Agent API", version=BACKEND_VERSION)
 
@@ -35,6 +35,12 @@ sessions: dict[str, Any] = {}
 class ChatRequest(BaseModel):
     session_id: str | None = None
     message: str
+
+
+class GuidedChatRequest(BaseModel):
+    session_id: str | None = None
+    message: str
+    scene_hint: Literal["friends", "couple"] | None = None
 
 
 class SelectOptionRequest(BaseModel):
@@ -163,8 +169,8 @@ def _tool_event_payload(event: Any) -> dict[str, Any]:
     }
 
 
-def _response_payload(response: AgentResponse) -> dict[str, Any]:
-    return {
+def _response_payload(response: AgentResponse, conversation: dict[str, object] | None = None) -> dict[str, Any]:
+    payload = {
         "session_id": response.session_id,
         "message": response.message,
         "intent": response.intent.value if response.intent else None,
@@ -182,6 +188,9 @@ def _response_payload(response: AgentResponse) -> dict[str, Any]:
             "seed": HANGZHOU_DEMO_VERSION,
         },
     }
+    if conversation is not None:
+        payload["conversation"] = conversation
+    return payload
 
 
 def _booking_draft_payload(draft: BookingDraft) -> dict[str, Any]:
@@ -318,6 +327,14 @@ def chat(request: ChatRequest) -> dict[str, Any]:
     session_id = _get_or_create_session_id(request.session_id)
     response = agent.chat(session_id, request.message)
     return _response_payload(response)
+
+
+@app.post("/api/chat/guided")
+def guided_chat(request: GuidedChatRequest) -> dict[str, Any]:
+    session_id = _get_or_create_session_id(request.session_id)
+    response = agent.chat_with_guidance(session_id, request.message, scene_hint=request.scene_hint)
+    conversation = agent.get_conversation_payload(session_id, has_options=bool(response.options))
+    return _response_payload(response, conversation=conversation)
 
 
 @app.post("/api/select-option")

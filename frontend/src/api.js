@@ -45,6 +45,13 @@ export const refreshItinerary = async (sessionId, optionId) =>
 export const sendChatMessage = async (sessionId, message) =>
   request(api.post('/chat', { session_id: sessionId, message }));
 
+export const sendGuidedChatMessage = async ({ sessionId, message, sceneHint }) =>
+  request(api.post('/chat/guided', {
+    session_id: sessionId,
+    message,
+    scene_hint: sceneHint,
+  }));
+
 export const selectOption = async (sessionId, optionId) =>
   request(api.post('/select-option', { session_id: sessionId, option_id: optionId }));
 
