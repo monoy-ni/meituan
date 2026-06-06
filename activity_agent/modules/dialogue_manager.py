@@ -1,0 +1,351 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import Any, Optional
+
+from activity_agent.domain.models import Intent, Scene, UserRequest
+from activity_agent.llm import LLMClient, MockLLMClient
+
+
+class DialogueState(StrEnum):
+    INIT = "init"
+    IDENTIFYING_SCENE = "identifying_scene"
+    COLLECTING_FRIENDS_CONTEXT = "collecting_friends_context"
+    COLLECTING_COUPLE_CONTEXT = "collecting_couple_context"
+    REFINING_DETAILS = "refining_details"
+    READY_TO_PLAN = "ready_to_plan"
+    PRESENTING_OPTIONS = "presenting_options"
+    AWAITING_SELECTION = "awaiting_selection"
+    AWAITING_FEEDBACK = "awaiting_feedback"
+    READY_TO_BOOK = "ready_to_book"
+    BOOKING = "booking"
+    COMPLETED = "completed"
+
+
+@dataclass
+class UserUnderstanding:
+    """LLM 理解的用户需求结构化结果"""
+    scene: Optional[Scene] = None
+    relationship_stage: Optional[str] = None
+    relationship_goal: Optional[str] = None
+    mood_tags: list[str] = field(default_factory=list)
+    budget: Optional[int] = None
+    time_window: Optional[str] = None
+    location: Optional[str] = None
+    constraints: dict[str, bool] = field(default_factory=dict)
+    confidence: float = 0.0
+
+
+@dataclass
+class DialogueContext:
+    state: DialogueState = DialogueState.INIT
+    scene: Scene | None = None
+    request: UserRequest | None = None
+    collected_info: dict[str, Any] = field(default_factory=dict)
+    messages: list[dict[str, str]] = field(default_factory=list)
+    last_response: str = ""
+    understanding: UserUnderstanding | None = None
+
+
+class DialogueManager:
+    """
+    智能对话管理器 - 使用 LLM 理解用户意图，而不是简单的关键字匹配
+
+    特性:
+    - LLM 优先理解用户真实意图
+    - 自然语言推断，不依赖硬编码关键字
+    - 智能降级机制，无 LLM 时回退到规则
+    """
+
+    def __init__(self, llm_client: Optional[LLMClient] = None) -> None:
+        self.contexts: dict[str, DialogueContext] = {}
+        self.llm_client = llm_client or MockLLMClient()
+        self._use_llm = not isinstance(llm_client, MockLLMClient)
+
+    def get_or_create_context(self, session_id: str) -> DialogueContext:
+        if session_id not in self.contexts:
+            self.contexts[session_id] = DialogueContext()
+        return self.contexts[session_id]
+
+    def _understand_with_llm(self, text: str, history: list[dict[str, str]] | None = None) -> UserUnderstanding:
+        """
+        使用 LLM 深度理解用户意图
+        """
+        understanding = UserUnderstanding()
+
+        try:
+            system_prompt = """你是一个活动规划助手，负责理解用户的需求。请仔细分析用户的话，提取以下信息，以JSON格式返回：
+
+{
+  "scene": "friends" 或 "couple"，根据用户说的话判断是朋友聚会还是情侣约会，拿不准就null,
+  "relationship_stage": "暧昧/追求中"|"刚在一起"|"稳定情侣"|"纪念日"|"想修复关系"，仅当scene是couple时推断,
+  "relationship_goal": "降低邀约门槛"|"降低尴尬"|"自然升温"|"创造共同体验"|"制造仪式感"|"缓和关系"等，仅当scene是couple时,
+  "mood_tags": ["回血", "放松", "热闹", "疯玩", "拍照", "省钱", "安静", "浪漫"],
+  "budget": 整数，人均预算，没有提到就是null,
+  "time": "今晚"|"明晚"|"周末"|"周末下午"|"周六"等,
+  "constraints": {
+    "no_alcohol": true/false,
+    "indoor_only": true/false,
+    "cheaper": true/false,
+    "hotel_wanted": true/false,
+    "gift_wanted": true/false
+  },
+  "confidence": 0-1之间的数字，表示对你的把握程度
+}
+
+注意：
+- 如果用户提到"怕尴尬"、"约她"、"约他"、"第一次"，relationship_stage很可能是"暧昧/追求中"
+- 如果用户提到"纪念日"、"惊喜"、"浪漫"，scene很可能是"couple"
+- 如果用户提到"朋友"、"聚聚"、"哥们"、"姐们"、"大家"，scene很可能是"friends"
+- 只返回JSON，不要其他文字
+"""
+
+            messages = [{"role": "system", "content": system_prompt}]
+            if history:
+                messages.extend(history[-3:])
+            messages.append({"role": "user", "content": text})
+
+            try:
+                response = self.llm_client.complete(messages)
+                import json
+                result = json.loads(response)
+
+                if result:
+                    understanding.scene = Scene(result["scene"]) if result.get("scene") in ["friends", "couple"] else None
+                    understanding.relationship_stage = result.get("relationship_stage")
+                    understanding.relationship_goal = result.get("relationship_goal")
+                    understanding.mood_tags = result.get("mood_tags", [])
+                    understanding.budget = result.get("budget")
+                    understanding.time_window = result.get("time")
+                    understanding.constraints = result.get("constraints", {})
+                    understanding.confidence = result.get("confidence", 0.5)
+
+            except Exception:
+                pass
+
+        except Exception:
+            pass
+
+        return understanding
+
+    def _understand_with_rules(self, text: str) -> UserUnderstanding:
+        """
+        降级方案：规则匹配（当没有 LLM 时使用）
+        """
+        understanding = UserUnderstanding(confidence=0.6)
+
+        text_lower = text.lower()
+
+        friends_keywords = ["朋友", "聚聚", "局", "哥们", "姐妹", "同事", "大家", "几个人"]
+        couple_keywords = ["约会", "对象", "女朋友", "男朋友", "ta", "两个人", "纪念日", "惊喜", "浪漫", "暧昧", "浪漫"]
+
+        has_friends = any(k in text for k in friends_keywords)
+        has_couple = any(k in text_lower for k in couple_keywords)
+
+        if has_couple and not has_friends:
+            understanding.scene = Scene.COUPLE
+        elif has_friends:
+            understanding.scene = Scene.FRIENDS
+
+        if understanding.scene == Scene.COUPLE:
+            if "怕尴尬" in text or "第一次" in text or "约她" in text or "约他" in text:
+                understanding.relationship_stage = "暧昧/追求中"
+                understanding.relationship_goal = "降低尴尬"
+            elif "纪念日" in text:
+                understanding.relationship_stage = "纪念日"
+                understanding.relationship_goal = "制造仪式感"
+            elif "修复" in text or "吵架" in text:
+                understanding.relationship_stage = "想修复关系"
+                understanding.relationship_goal = "缓和关系"
+            else:
+                understanding.relationship_stage = "稳定情侣"
+                understanding.relationship_goal = "创造共同体验"
+
+        mood_mapping = [
+            (["累", "回血", "放松", "解压"], ["回血", "放松"]),
+            (["疯", "热闹", "嗨"], ["发疯", "热闹"]),
+            (["拍照", "出片", "好看"], ["出片"]),
+            (["省钱", "便宜", "预算"], ["省钱"]),
+            (["安静", "不吵"], ["安静"]),
+            (["浪漫", "惊喜", "惊喜"], ["浪漫"]),
+        ]
+
+        for keywords, tags in mood_mapping:
+            if any(k in text for k in keywords):
+                understanding.mood_tags.extend(tags)
+
+        import re
+        budget_match = re.search(r'(?:人均|预算|每人)\D*(\d{2,4})', text)
+        if budget_match:
+            understanding.budget = int(budget_match.group(1))
+
+        if "今晚" in text:
+            understanding.time_window = "今晚"
+        elif "明晚" in text:
+            understanding.time_window = "明晚"
+        elif "周末" in text:
+            understanding.time_window = "周末"
+        elif "下午" in text:
+            understanding.time_window = "周末下午"
+
+        understanding.constraints = {
+            "no_alcohol": "不喝酒" in text or "不要酒" in text,
+            "indoor_only": "室内" in text,
+            "cheaper": "便宜" in text or "省钱" in text,
+            "hotel_wanted": "酒店" in text or "过夜" in text,
+            "gift_wanted": "礼物" in text or "花" in text or "蛋糕" in text,
+        }
+
+        return understanding
+
+    def _understand(self, text: str, history: list[dict[str, str]] | None = None) -> UserUnderstanding:
+        """
+        综合理解用户意图：LLM 优先，失败则回退到规则
+        """
+        if self._use_llm:
+            try:
+                understanding = self._understand_with_llm(text, history)
+                if understanding.confidence >= 0.3:
+                    return understanding
+            except Exception:
+                pass
+
+        return self._understand_with_rules(text)
+
+    def _generate_response(self, ctx: DialogueContext, understanding: UserUnderstanding) -> tuple[str, bool]:
+        """
+        根据理解结果生成回复，并决定是否继续对话
+        """
+        info = ctx.collected_info
+
+        if ctx.state == DialogueState.INIT:
+            if understanding.scene:
+                ctx.scene = understanding.scene
+                if understanding.scene == Scene.FRIENDS:
+                    ctx.state = DialogueState.COLLECTING_FRIENDS_CONTEXT
+                    return self._friends_opening(understanding), True
+                else:
+                    ctx.state = DialogueState.COLLECTING_COUPLE_CONTEXT
+                    return self._couple_opening(understanding), True
+            else:
+                ctx.state = DialogueState.IDENTIFYING_SCENE
+                return "好的！是想和朋友聚聚，还是想安排约会呢？", True
+
+        if ctx.state == DialogueState.IDENTIFYING_SCENE:
+            if understanding.scene == Scene.FRIENDS:
+                ctx.scene = Scene.FRIENDS
+                ctx.state = DialogueState.COLLECTING_FRIENDS_CONTEXT
+                return "好的，朋友局！我来帮你安排。" + self._friends_opening(understanding), True
+            elif understanding.scene == Scene.COUPLE:
+                ctx.scene = Scene.COUPLE
+                ctx.state = DialogueState.COLLECTING_COUPLE_CONTEXT
+                return "好的，约会安排！" + self._couple_opening(understanding), True
+            else:
+                return "我还在确认... 是朋友聚会还是约会呢？", True
+
+        if ctx.state == DialogueState.COLLECTING_FRIENDS_CONTEXT:
+            if understanding.mood_tags and "mood" not in info:
+                info["mood"] = understanding.mood_tags
+            if understanding.budget and "budget" not in info:
+                info["budget"] = understanding.budget
+            if understanding.time_window and "time" not in info:
+                info["time"] = understanding.time_window
+
+            if "mood" not in info:
+                return "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？", True
+            if "budget" not in info:
+                return "人均预算大概多少呢？100-200、200-300，还是更高一些？", True
+            if "time" not in info:
+                return "安排在什么时候呢？今晚、明晚，还是周末？", True
+
+            ctx.state = DialogueState.READY_TO_PLAN
+            return "好的！我已经了解得差不多了，这就为你生成几个方案。", False
+
+        if ctx.state == DialogueState.COLLECTING_COUPLE_CONTEXT:
+            if understanding.relationship_stage and "relationship_stage" not in info:
+                info["relationship_stage"] = understanding.relationship_stage
+                info["relationship_goal"] = understanding.relationship_goal
+            if understanding.budget and "budget" not in info:
+                info["budget"] = understanding.budget
+            if understanding.time_window and "time" not in info:
+                info["time"] = understanding.time_window
+
+            if "relationship_stage" not in info:
+                return "这次约会想安排成什么样的感觉呢？是轻松自然一些，还是想制造些浪漫？", True
+            if "budget" not in info:
+                return "人均预算大概多少呢？我可以根据预算调整推荐。", True
+            if "time" not in info:
+                return "安排在什么时候比较好呢？周末下午，还是晚上？", True
+
+            ctx.state = DialogueState.READY_TO_PLAN
+            return "好的，我懂了！这就为你准备几个合适的方案。", False
+
+        if ctx.state == DialogueState.REFINING_DETAILS:
+            ctx.state = DialogueState.READY_TO_PLAN
+            return "好的，我调整一下方案。", False
+
+        if ctx.state == DialogueState.AWAITING_SELECTION:
+            info["selected"] = True
+            ctx.state = DialogueState.AWAITING_FEEDBACK
+            return "选好了！需要调整什么吗，还是直接帮你预约？", True
+
+        if ctx.state == DialogueState.AWAITING_FEEDBACK:
+            if "预约" in understanding.mood_tags:
+                ctx.state = DialogueState.READY_TO_BOOK
+                return "好的，这就帮你安排预约！", False
+            else:
+                ctx.state = DialogueState.REFINING_DETAILS
+                return "明白了，我调整一下方案。", False
+
+        return "我理解了，让我继续为你规划。", False
+
+    def _friends_opening(self, understanding: UserUnderstanding) -> str:
+        base = "帮你安排朋友局没问题！"
+        if "回血" in understanding.mood_tags or "放松" in understanding.mood_tags:
+            return base + " 刚下班辛苦了，给你安排点放松的？"
+        return base + " 跟我说说大概想怎么玩？"
+
+    def _couple_opening(self, understanding: UserUnderstanding) -> str:
+        base = "约会安排包在我身上！"
+        if understanding.relationship_stage == "纪念日":
+            return base + " 纪念日要好好安排一下，给你准备点有仪式感的！"
+        if understanding.relationship_stage == "暧昧/追求中":
+            return base + " 懂，给你安排点轻松不尴尬的！"
+        return base
+
+    def process_input(
+        self,
+        session_id: str,
+        text: str,
+        current_request: UserRequest | None = None,
+    ) -> tuple[DialogueContext, str, bool]:
+        """
+        处理用户输入，返回更新后的上下文、回复消息、是否需要继续对话
+
+        Returns:
+            (context, response_message, should_continue)
+        """
+        ctx = self.get_or_create_context(session_id)
+        ctx.messages.append({"role": "user", "content": text})
+
+        understanding = self._understand(text, ctx.messages)
+        ctx.understanding = understanding
+
+        response, should_continue = self._generate_response(ctx, understanding)
+
+        ctx.last_response = response
+        return ctx, response, should_continue
+
+    def mark_options_presented(self, session_id: str) -> None:
+        ctx = self.get_or_create_context(session_id)
+        ctx.state = DialogueState.AWAITING_SELECTION
+
+    def mark_booking(self, session_id: str) -> None:
+        ctx = self.get_or_create_context(session_id)
+        ctx.state = DialogueState.BOOKING
+
+    def mark_completed(self, session_id: str) -> None:
+        ctx = self.get_or_create_context(session_id)
+        ctx.state = DialogueState.COMPLETED
+

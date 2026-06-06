@@ -1,0 +1,83 @@
+
+.booking-confirmation {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  margin: 10px 0;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.booking-confirmation.success {
+  border: 2px solid #28a745;
+}
+
+.booking-confirmation.cancelled {
+  border: 2px solid #dc3545;
+}
+
+.confirmation-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.booking-confirmation h3 {
+  font-size: 24px;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.confirmation-message {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.order-ids {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.order-ids h4 {
+  font-size: 14px;
+  color: #495057;
+  margin-bottom: 12px;
+}
+
+.id-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.order-id {
+  background: white;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #667eea;
+  font-family: monospace;
+  border: 1px solid #e9ecef;
+}
+
+.next-steps {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.next-steps p {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.next-steps .sub-text {
+  font-size: 14px;
+  color: #666;
+}
+

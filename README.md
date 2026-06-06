@@ -122,3 +122,90 @@ tests/
 - 只有 `confirm_booking(..., confirm=True)` 才会返回 mock order/reservation/ticket/hotel/delivery ids。
 - Mock 工具层不做真实支付、真实出票、真实酒店下单或真实配送。
 
+## 对话式交互（新功能）
+
+新增 `chat_with_guidance()` 接口实现完整的对话式流程：
+
+1. **自动识别群体** - 通过对话内容判断是朋友局还是约会
+2. **多轮引导收集需求** - 自然地逐步询问预算、时间、氛围等
+3. **智能关系推断** - 情侣场景不直接问关系阶段，通过对话推断
+   - "怕尴尬" → 暧昧/追求中
+   - "纪念日" → 纪念日模式
+   - "老夫老妻" → 稳定情侣
+4. **多方案推荐** - 收集完需求后生成 3 个方案
+5. **一键预约** - `select_and_book()` 自动完成选择到下单
+
+### LLM 智能理解（升级）
+
+不再依赖硬编码关键字匹配，改用 LLM 进行自然语言理解：
+
+- **LLM 优先** - 有 API Key 时使用 OpenAI 兼容的 LLM 深度理解
+- **智能降级** - 没有 LLM 时自动回退到规则匹配
+- **置信度评估** - 对理解结果给出置信度，把握不大时会确认
+- **上下文感知** - 结合历史对话理解当前意图
+
+运行对话式演示：
+```bash
+python demo_conversational.py
+python demo_llm_understanding.py  # 查看 LLM 理解能力
+```
+
+## Web 前端应用
+
+我们提供了完整的 React 前端界面，让你可以通过浏览器与智能 Agent 交互！
+
+### 项目结构
+```
+meituan-agent/
+├── backend/              # FastAPI 后端
+│   ├── main.py          # API 服务
+│   └── requirements.txt # Python 依赖
+└── frontend/            # React 前端
+    ├── src/
+    │   ├── components/  # React 组件
+    │   ├── App.js      # 主应用
+    │   └── api.js      # API 调用
+    └── package.json    # Node 依赖
+```
+
+### 快速启动
+
+#### Windows 用户
+1. 启动后端服务（需要新的终端窗口）：
+```cmd
+start-backend.bat
+```
+
+2. 启动前端服务（需要另一个终端窗口）：
+```cmd
+start-frontend.bat
+```
+
+#### 手动启动
+
+**1. 启动后端：**
+```bash
+cd backend
+pip install -r requirements.txt
+python main.py
+```
+后端将运行在 http://localhost:8000
+
+**2. 启动前端：**
+```bash
+cd frontend
+npm install
+npm start
+```
+前端将运行在 http://localhost:3000
+
+### 功能特点
+- 💬 多轮对话界面 - 自然语言交互
+- 🎨 活动方案展示 - 美观的卡片布局
+- 📋 预约流程 - 从选择到确认的完整流程
+- 📱 响应式设计 - 支持手机和桌面端
+- 🔄 实时交互 - 流畅的用户体验
+
+### API 文档
+启动后端后，访问 http://localhost:8000/docs 查看完整的 API 文档。
+

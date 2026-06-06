@@ -1,0 +1,103 @@
+
+.activity-card {
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.activity-card:hover {
+  border-color: #667eea;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+}
+
+.activity-card.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.card-header h4 {
+  font-size: 18px;
+  color: #333;
+  margin: 0;
+}
+
+.price-tag {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.emotional-hook {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  font-style: italic;
+}
+
+.timeline {
+  border-left: 3px solid #e9ecef;
+  padding-left: 16px;
+  margin-bottom: 16px;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.timeline-item .time {
+  color: #667eea;
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.timeline-item .merchant {
+  flex: 1;
+  color: #333;
+}
+
+.timeline-item .price {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.risk-notes, .dating-tips {
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.dating-tips {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.distance-info {
+  color: #666;
+  font-size: 13px;
+  padding-top: 10px;
+  border-top: 1px solid #e9ecef;
+}
+

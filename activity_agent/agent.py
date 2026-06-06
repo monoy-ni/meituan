@@ -23,6 +23,7 @@ from activity_agent.domain.models import (
 from activity_agent.llm import LLMClient, LLMOrchestrator, MockLLMClient, OpenAICompatibleLLMClient
 from activity_agent.modules.booking_orchestrator import BookingOrchestrator
 from activity_agent.modules.context_collector import ContextCollector
+from activity_agent.modules.dialogue_manager import DialogueManager, DialogueState
 from activity_agent.modules.feedback_resolver import FeedbackResolver
 from activity_agent.modules.intent_router import IntentRouter
 from activity_agent.modules.itinerary_composer import ItineraryComposer
@@ -63,6 +64,7 @@ class ActivityPlanningAgent:
         self.feedback_resolver = FeedbackResolver(self.theme_planner, self.itinerary_composer)
         self.booking_orchestrator = BookingOrchestrator(self.tool_client)
         self.review_memory = ReviewMemory()
+        self.dialogue_manager = DialogueManager(self.llm_client)
 
     @classmethod
     def from_env(cls) -> "ActivityPlanningAgent":
@@ -324,3 +326,69 @@ class ActivityPlanningAgent:
             mood_tags=list(dict.fromkeys(mood_tags)),
             hard_constraints=constraints,
         )
+
+    def chat_with_guidance(self, session_id: str, text: str) -> AgentResponse:
+        """
+        带对话引导的聊天接口 - 实现多轮对话流程
+        
+        1. 先识别用户群体（朋友/情侣）
+        2. 多轮交流确定需求
+        3. 提供多个方案
+        4. 用户选择后自动预约
+        """
+        self._ensure_session(session_id)
+
+        latest = self.repository.get_latest_planning(session_id)
+        partial_request = latest["request"] if latest else None
+
+        ctx, reply_msg, should_continue = self.dialogue_manager.process_input(
+            session_id, text, partial_request
+        )
+
+        self.repository.add_message(session_id, "user", text)
+
+        if not should_continue and ctx.state == DialogueState.READY_TO_PLAN:
+            response = self.chat(session_id, text)
+            self.dialogue_manager.mark_options_presented(session_id)
+            return replace(
+                response,
+                message=reply_msg + "\n\n" + response.message,
+            )
+
+        self.repository.add_message(session_id, "assistant", reply_msg)
+
+        return AgentResponse(
+            session_id=session_id,
+            intent=Intent.PLAN,
+            scene=ctx.scene or Scene.FRIENDS,
+            message=reply_msg,
+            request=partial_request,
+            options=[],
+            share_cards=[],
+            missing_questions=[],
+            assumptions=[],
+            tool_events=[],
+            degraded=False,
+        )
+
+    def select_and_book(self, session_id: str, option_id: str) -> tuple[BookingDraft, BookingConfirmation]:
+        """
+        选择方案并自动完成预约
+        
+        Returns:
+            (booking_draft, booking_confirmation)
+        """
+        select_response = self.select_option(session_id, option_id)
+
+        draft = self.create_booking_draft(session_id, option_id)
+        confirmation = self.confirm_booking(session_id, draft.id, confirm=True)
+
+        self.dialogue_manager.mark_booking(session_id)
+        self.dialogue_manager.mark_completed(session_id)
+
+        return draft, confirmation
+
+    def get_conversation_state(self, session_id: str) -> str:
+        """获取当前对话状态"""
+        ctx = self.dialogue_manager.get_or_create_context(session_id)
+        return ctx.state.value
