@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from activity_agent.domain.models import Intent, Scene, UserRequest
 from activity_agent.llm import LLMClient, MockLLMClient
@@ -47,6 +47,10 @@ class DialogueContext:
     messages: list[dict[str, str]] = field(default_factory=list)
     last_response: str = ""
     understanding: UserUnderstanding | None = None
+    created_at: datetime = field(default_factory=datetime.now)
+    turn_count: int = 0
+    max_turns: int = 8  # 最大对话轮数
+    session_timeout_minutes: int = 5  # 会话超时分钟数
 
 
 class DialogueManager:
@@ -228,10 +232,33 @@ class DialogueManager:
             return f"selected_day 18:30-23:30"
         return None
 
+    def _check_termination_conditions(self, ctx: DialogueContext) -> Optional[str]:
+        """检查对话是否应该终止"""
+        # 1. 检查会话超时
+        if datetime.now() - ctx.created_at > timedelta(minutes=ctx.session_timeout_minutes):
+            return f"会话已超时（{ctx.session_timeout_minutes}分钟）。如果需要继续规划，请开始新会话。"
+        
+        # 2. 检查最大轮次
+        if ctx.turn_count >= ctx.max_turns:
+            return f"已达到最大对话轮次（{ctx.max_turns}）。我们已经提供了方案，你可以直接选择或重新开始。"
+        
+        # 3. 检查是否已经完成预订
+        if ctx.state == DialogueState.COMPLETED:
+            return "预订已完成！如果你需要新的规划，可以开始新会话。"
+        
+        return None
+    
     def _generate_response(self, ctx: DialogueContext, understanding: UserUnderstanding) -> tuple[str, bool]:
         """根据理解结果生成回复，并决定是否继续对话"""
+        
+        # 先检查终止条件
+        termination_msg = self._check_termination_conditions(ctx)
+        if termination_msg:
+            return termination_msg, False
+        
         info = ctx.collected_info
-
+        ctx.turn_count += 1
+        
         if ctx.state == DialogueState.INIT:
             if understanding.scene:
                 ctx.scene = understanding.scene
@@ -304,12 +331,18 @@ class DialogueManager:
             return "选好了！需要调整什么吗，还是直接帮你预约？", True
 
         if ctx.state == DialogueState.AWAITING_FEEDBACK:
-            if "预约" in text or "确定" in text or "下单" in text:
+            # 修复：使用 understanding 或最后一条消息
+            last_user_msg = ctx.messages[-1]["content"] if ctx.messages else ""
+            keywords = ["预约", "确定", "下单", "好的", "可以"]
+            if any(kw in last_user_msg for kw in keywords):
                 ctx.state = DialogueState.READY_TO_BOOK
                 return "好的，这就帮你安排预约！", False
             else:
                 ctx.state = DialogueState.REFINING_DETAILS
                 return "明白了，我调整一下方案。", False
+
+        if ctx.state in [DialogueState.READY_TO_BOOK, DialogueState.BOOKING]:
+            return "正在处理预订...", False
 
         return "我理解了，让我继续为你规划。", False
 
