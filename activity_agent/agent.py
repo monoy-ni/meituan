@@ -30,6 +30,7 @@ from activity_agent.modules.itinerary_composer import ItineraryComposer
 from activity_agent.modules.review_memory import ReviewMemory
 from activity_agent.modules.share_card_generator import ShareCardGenerator
 from activity_agent.modules.theme_planner import ThemePlanner
+from activity_agent.providers import MockCommerceProvider, MockMapDataProvider, MockWeatherProvider, SeedLocalDataProvider
 from activity_agent.storage import SQLiteRepository
 from activity_agent.tools import MockMeituanToolClient
 
@@ -50,7 +51,12 @@ class ActivityPlanningAgent:
             tools=ToolSettings(),
         )
         self.repository = repository or SQLiteRepository(self.settings.storage.path)
-        self.tool_client = tool_client or MockMeituanToolClient()
+        self.local_data_provider = SeedLocalDataProvider(self.repository)
+        local_catalog = self.local_data_provider.list_supplies("hangzhou")
+        self.tool_client = tool_client or MockMeituanToolClient(local_catalog)
+        self.map_provider = MockMapDataProvider(self.repository)
+        self.weather_provider = MockWeatherProvider()
+        self.commerce_provider = MockCommerceProvider(self.tool_client)
         
         # 简化 LLM 客户端选择 - 直接选择，没有降级逻辑
         self.llm_client = llm_client or (
@@ -60,10 +66,13 @@ class ActivityPlanningAgent:
         self.intent_router = IntentRouter()
         self.context_collector = ContextCollector()
         self.theme_planner = ThemePlanner()
-        self.itinerary_composer = ItineraryComposer()
+        from activity_agent.modules.supply_matcher import SupplyMatcher
+
+        self.supply_matcher = SupplyMatcher(local_catalog)
+        self.itinerary_composer = ItineraryComposer(self.supply_matcher)
         self.share_card_generator = ShareCardGenerator()
         self.feedback_resolver = FeedbackResolver(self.theme_planner, self.itinerary_composer)
-        self.booking_orchestrator = BookingOrchestrator(self.tool_client)
+        self.booking_orchestrator = BookingOrchestrator(self.commerce_provider)
         self.review_memory = ReviewMemory()
         self.dialogue_manager = DialogueManager(self.llm_client)
 
@@ -77,6 +86,124 @@ class ActivityPlanningAgent:
 
     def close(self) -> None:
         self.repository.close()
+
+    def list_hangzhou_themes(self) -> list[dict[str, object]]:
+        return self.local_data_provider.list_theme_templates("hangzhou")
+
+    def featured_itineraries(
+        self,
+        city: str = "hangzhou",
+        duration: str | None = None,
+        date: str | None = None,
+    ) -> PlanningResult:
+        duration_text = "一日" if duration == "full_day" else "半日"
+        text = f"{city} {duration_text} 不想查攻略 直接安排 老城烟火 西湖 运河 特色美食"
+        if date:
+            text += f" {date}"
+        return self.plan(text, scene_hint=Scene.FRIENDS)
+
+    def generate_itineraries(
+        self,
+        session_id: str,
+        city: str = "hangzhou",
+        theme_id: str | None = None,
+        message: str | None = None,
+        budget_per_person: int | None = None,
+        duration: str | None = None,
+        party_size: int | None = None,
+        location: str | None = None,
+        time_window: str | None = None,
+        experience_tags: list[str] | None = None,
+        effort_preference: str | None = None,
+        weather: str | None = None,
+    ) -> AgentResponse:
+        self._ensure_session(session_id)
+        theme = self._theme_prompt(theme_id)
+        city_name = "杭州" if city in {"hangzhou", "杭州"} else city
+        text = message or f"{city_name} 不想查攻略 直接安排 {theme}"
+        if budget_per_person:
+            text += f"，人均预算{budget_per_person}"
+        if duration == "full_day":
+            text += "，一整天"
+        elif duration == "half_day":
+            text += "，半天"
+        if party_size:
+            text += f"，{party_size}个人"
+        if location:
+            text += f"，从{location}附近出发"
+        if time_window:
+            text += f"，时间{time_window}"
+        if experience_tags:
+            text += "，想要" + "、".join(experience_tags)
+        if effort_preference in {"low", "低", "少走路"}:
+            text += "，不想太累，少走路"
+        if weather in {"rain", "rainy", "下雨", "雨天"}:
+            text += "，下雨，优先室内"
+        return self.chat(session_id, text)
+
+    def refresh_itinerary(self, session_id: str, itinerary_id: str) -> dict[str, object]:
+        latest = self._latest_planning_or_raise(session_id)
+        request = latest["request"]
+        option = self._find_option(latest["options"], itinerary_id)
+        area_clusters = [item.area_cluster for item in option.timeline_items if item.area_cluster]
+        route_snapshot = self.map_provider.route_summary(area_clusters)
+        weather_snapshot = self.weather_provider.weather_hint(request.location_anchor, rainy=request.weather_sensitive)
+
+        availability = []
+        events = []
+        for item in option.timeline_items:
+            result = self.commerce_provider.check_availability(item.merchant_id, request.time_window, request.party_size)
+            events.append(result.event)
+            data = dict(result.data)
+            availability.append(
+                {
+                    "merchant_id": item.merchant_id,
+                    "merchant_name": item.merchant_name,
+                    "available": bool(data.get("available")),
+                    "remaining_capacity": data.get("remaining_capacity"),
+                    "data_confidence": "seed",
+                }
+            )
+
+        return {
+            "itinerary_id": option.id,
+            "status": "seed_estimate",
+            "provider_mode": self.settings.tools.data_mode,
+            "data_confidence": "cache" if route_snapshot.data_confidence == "cache" else "seed",
+            "route": {
+                "provider": route_snapshot.provider,
+                "status": route_snapshot.status,
+                "message": route_snapshot.message,
+            },
+            "weather": {
+                "provider": weather_snapshot.provider,
+                "status": weather_snapshot.status,
+                "message": weather_snapshot.message,
+            },
+            "commerce": {
+                "provider": "mock_commerce",
+                "status": "seed_estimate",
+                "availability": availability,
+                "message": "库存和价格为 mock/seed 估算，真实履约需接授权接口后确认。",
+            },
+            "degraded": True,
+            "message": "当前没有真实地图/天气/交易 Key，已用 seed/cache 估算刷新；出发前建议确认。",
+            "tool_events": [event.__dict__ for event in events],
+        }
+
+    def sync_provider_data(self, city: str = "hangzhou") -> dict[str, object]:
+        supplies = self.local_data_provider.list_supplies(city)
+        clusters = self.local_data_provider.list_route_clusters(city)
+        templates = self.local_data_provider.list_theme_templates(city)
+        return {
+            "city": city,
+            "status": "seed_synced",
+            "data_mode": self.settings.tools.data_mode,
+            "places": len(supplies),
+            "route_clusters": len(clusters),
+            "theme_templates": len(templates),
+            "message": "当前为 seed/local_db 同步结果；真实 provider 需要配置授权 Key 后接入。",
+        }
 
     def chat(self, session_id: str, text: str) -> AgentResponse:
         """简化的聊天方法 - 使用新的对话管理器逻辑"""
@@ -263,9 +390,20 @@ class ActivityPlanningAgent:
             raise ValueError(f"Plan option not found: {option_id}") from exc
 
     def _planning_message(self, result: PlanningResult) -> str:
-        label = "约会方案" if result.request.scene == Scene.COUPLE else "组局方案"
+        label = "杭州主题局" if result.request.location_anchor == "hangzhou" else ("约会方案" if result.request.scene == Scene.COUPLE else "组局方案")
         names = " / ".join(option.theme_name for option in result.options)
         return f"我给你配了 {len(result.options)} 个{label}：{names}。"
+
+    def _theme_prompt(self, theme_id: str | None) -> str:
+        mapping = {
+            "hz_old_town_fireworks": "老城烟火 特色美食 本土底蕴",
+            "hz_canal_citywalk": "运河 人文 Citywalk",
+            "hz_westlake_easy": "西湖 低体力 打卡",
+            "hz_longwu_suburb": "近郊山水 茶山 龙坞",
+            "hz_food_tour": "特色美食 小吃 老城烟火",
+            "hz_rainy_indoor": "雨天 室内 低体力",
+        }
+        return mapping.get(str(theme_id or ""), "杭州 老城烟火 特色美食")
 
     def _scene_from_llm(self, llm_data: dict[str, Any] | None) -> Scene | None:
         if not llm_data or not llm_data.get("scene"):
@@ -283,6 +421,7 @@ class ActivityPlanningAgent:
         hard_constraints.update({key: bool(value) for key, value in dict(data.get("hard_constraints") or {}).items()})
 
         mood_tags = list(dict.fromkeys([*request.mood_tags, *list(data.get("mood_tags") or [])]))
+        experience_tags = list(dict.fromkeys([*request.experience_tags, *list(data.get("experience_tags") or [])]))
         budget = self._safe_int(data.get("budget_per_person"), request.budget_per_person)
         party_size = self._safe_int(data.get("party_size"), request.party_size)
 
@@ -296,6 +435,11 @@ class ActivityPlanningAgent:
             relationship_stage=data.get("relationship_stage") or request.relationship_stage,
             relationship_goal=data.get("relationship_goal") or request.relationship_goal,
             hard_constraints=hard_constraints,
+            journey_duration=str(data.get("journey_duration") or request.journey_duration),
+            experience_tags=experience_tags,
+            planning_effort=str(data.get("planning_effort") or request.planning_effort),
+            travel_radius_km=float(data.get("travel_radius_km") or request.travel_radius_km),
+            weather_sensitive=bool(data.get("weather_sensitive") or request.weather_sensitive),
         )
 
     def _safe_int(self, value: object, fallback: int) -> int:
@@ -325,11 +469,19 @@ class ActivityPlanningAgent:
             constraints["hotel_wanted"] = True
         if "礼物" in normalized or "花" in normalized or "蛋糕" in normalized:
             constraints["gift_wanted"] = True
+        experience_tags = list(request.experience_tags)
+        if "室内" in normalized:
+            experience_tags.append("雨天室内")
+        if "少走路" in normalized or "不想太累" in normalized:
+            experience_tags.append("低体力")
+        if "加拍照点" in normalized:
+            experience_tags.append("打卡")
 
         return replace(
             request,
             budget_per_person=budget,
             mood_tags=list(dict.fromkeys(mood_tags)),
+            experience_tags=list(dict.fromkeys(experience_tags)),
             hard_constraints=constraints,
         )
 

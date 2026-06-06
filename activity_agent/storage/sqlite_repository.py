@@ -18,6 +18,7 @@ from activity_agent.domain.models import (
     FeedbackStatus,
     InviteFeedback,
     Intent,
+    MerchantSupply,
     PayMode,
     PlanOption,
     PlanningResult,
@@ -194,6 +195,119 @@ class SQLiteRepository:
         )
         self.touch_session(session_id)
 
+    def seed_local_catalog(
+        self,
+        supplies: list[Any],
+        route_clusters: list[dict[str, Any]],
+        theme_templates: list[dict[str, Any]],
+    ) -> None:
+        for supply in supplies:
+            payload = asdict(supply) if is_dataclass(supply) else dict(supply)
+            self.connection.execute(
+                """
+                INSERT OR REPLACE INTO places (
+                    id, city, area_cluster, type, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload["id"],
+                    payload.get("city", "hangzhou"),
+                    payload.get("area_cluster", ""),
+                    payload.get("type", ""),
+                    _to_json(payload),
+                    _now(),
+                ),
+            )
+            self.connection.execute("DELETE FROM place_tags WHERE place_id = ?", (payload["id"],))
+            for tag in [*payload.get("tags", []), *payload.get("local_flavor_tags", [])]:
+                self.connection.execute(
+                    "INSERT INTO place_tags (place_id, tag) VALUES (?, ?)",
+                    (payload["id"], tag),
+                )
+
+        for cluster in route_clusters:
+            self.connection.execute(
+                """
+                INSERT OR REPLACE INTO route_clusters (
+                    id, city, name, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    cluster["id"],
+                    cluster.get("city", "hangzhou"),
+                    cluster.get("name", cluster["id"]),
+                    _to_json(cluster),
+                    _now(),
+                ),
+            )
+
+        for template in theme_templates:
+            self.connection.execute(
+                """
+                INSERT OR REPLACE INTO theme_templates (
+                    id, city, name, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    template["id"],
+                    template.get("city", "hangzhou"),
+                    template.get("name", template["id"]),
+                    _to_json(template),
+                    _now(),
+                ),
+            )
+
+        self.connection.execute(
+            "INSERT OR REPLACE INTO source_records (id, source, status, payload_json, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                "source_seed_hangzhou_v1_4_0",
+                "seed",
+                "ok",
+                _to_json({"city": "hangzhou", "places": len(supplies), "templates": len(theme_templates)}),
+                _now(),
+            ),
+        )
+        self.connection.commit()
+
+    def list_local_supplies(self, city: str = "hangzhou") -> list[MerchantSupply]:
+        rows = self.connection.execute(
+            "SELECT payload_json FROM places WHERE city = ? ORDER BY area_cluster, type, id",
+            (city,),
+        ).fetchall()
+        return [_merchant_supply_from_dict(_from_json(row["payload_json"])) for row in rows]
+
+    def list_route_clusters(self, city: str = "hangzhou") -> list[dict[str, Any]]:
+        rows = self.connection.execute(
+            "SELECT payload_json FROM route_clusters WHERE city = ? ORDER BY name",
+            (city,),
+        ).fetchall()
+        return [_from_json(row["payload_json"]) for row in rows]
+
+    def list_theme_templates(self, city: str = "hangzhou") -> list[dict[str, Any]]:
+        rows = self.connection.execute(
+            "SELECT payload_json FROM theme_templates WHERE city = ? ORDER BY name",
+            (city,),
+        ).fetchall()
+        return [_from_json(row["payload_json"]) for row in rows]
+
+    def get_api_cache(self, provider: str, query_hash: str) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            "SELECT payload_json FROM api_cache WHERE provider = ? AND query_hash = ?",
+            (provider, query_hash),
+        ).fetchone()
+        return _from_json(row["payload_json"]) if row else None
+
+    def save_api_cache(self, provider: str, query_hash: str, status: str, ttl_seconds: int, payload: dict[str, Any]) -> None:
+        self.connection.execute(
+            """
+            INSERT OR REPLACE INTO api_cache (
+                provider, query_hash, status, ttl_seconds, payload_json, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (provider, query_hash, status, ttl_seconds, _to_json(payload), _now()),
+        )
+        self.connection.commit()
+
     def _migrate(self) -> None:
         self.connection.executescript(
             """
@@ -247,6 +361,48 @@ class SQLiteRepository:
                 review_json TEXT NOT NULL,
                 created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS places (
+                id TEXT PRIMARY KEY,
+                city TEXT NOT NULL,
+                area_cluster TEXT NOT NULL,
+                type TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS place_tags (
+                place_id TEXT NOT NULL,
+                tag TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS route_clusters (
+                id TEXT PRIMARY KEY,
+                city TEXT NOT NULL,
+                name TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS theme_templates (
+                id TEXT PRIMARY KEY,
+                city TEXT NOT NULL,
+                name TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS api_cache (
+                provider TEXT NOT NULL,
+                query_hash TEXT NOT NULL,
+                status TEXT NOT NULL,
+                ttl_seconds INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (provider, query_hash)
+            );
+            CREATE TABLE IF NOT EXISTS source_records (
+                id TEXT PRIMARY KEY,
+                source TEXT NOT NULL,
+                status TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             """
         )
         self.connection.commit()
@@ -267,6 +423,41 @@ def _request_from_dict(data: dict[str, Any]) -> UserRequest:
         relationship_stage=data.get("relationship_stage"),
         relationship_goal=data.get("relationship_goal"),
         hard_constraints=dict(data.get("hard_constraints", {})),
+        journey_duration=data.get("journey_duration", "evening"),
+        experience_tags=list(data.get("experience_tags", [])),
+        planning_effort=data.get("planning_effort", "guided"),
+        travel_radius_km=float(data.get("travel_radius_km", 3.0)),
+        weather_sensitive=bool(data.get("weather_sensitive", False)),
+    )
+
+
+def _merchant_supply_from_dict(data: dict[str, Any]) -> MerchantSupply:
+    return MerchantSupply(
+        id=data["id"],
+        name=data["name"],
+        type=TimelineType(data["type"]),
+        price=int(data["price"]),
+        duration_minutes=int(data["duration_minutes"]),
+        distance_km=float(data["distance_km"]),
+        district=data["district"],
+        tags=list(data.get("tags", [])),
+        scene_fit=[Scene(item) for item in data.get("scene_fit", [])],
+        booking_modes=list(data.get("booking_modes", [])),
+        available=bool(data["available"]),
+        why=data["why"],
+        source=data.get("source", "seed"),
+        source_id=data.get("source_id", ""),
+        city=data.get("city", "hangzhou"),
+        address=data.get("address", ""),
+        latitude=data.get("latitude"),
+        longitude=data.get("longitude"),
+        area_cluster=data.get("area_cluster", ""),
+        open_dayparts=list(data.get("open_dayparts", [])),
+        weather_fit=list(data.get("weather_fit", [])),
+        checkin_value=data.get("checkin_value", ""),
+        local_flavor_tags=list(data.get("local_flavor_tags", [])),
+        transport_hint=data.get("transport_hint", ""),
+        data_confidence=data.get("data_confidence", "seed"),
     )
 
 
@@ -281,6 +472,10 @@ def _timeline_item_from_dict(data: dict[str, Any]) -> TimelineItem:
         price_estimate=int(data["price_estimate"]),
         why_this_fits=data["why_this_fits"],
         booking_modes=list(data.get("booking_modes", [])),
+        area_cluster=data.get("area_cluster", ""),
+        checkin_hint=data.get("checkin_hint", ""),
+        transport_hint=data.get("transport_hint", ""),
+        data_confidence=data.get("data_confidence", "seed"),
     )
 
 
@@ -299,6 +494,13 @@ def _plan_option_from_dict(data: dict[str, Any]) -> PlanOption:
         add_ons=list(data.get("add_ons", [])),
         invite_copy=data.get("invite_copy"),
         dating_tips=list(data.get("dating_tips", [])),
+        route_story=data.get("route_story", ""),
+        gain_points=list(data.get("gain_points", [])),
+        fallbacks=list(data.get("fallbacks", [])),
+        checkin_points=list(data.get("checkin_points", [])),
+        effort_level=data.get("effort_level", "中"),
+        transport_summary=data.get("transport_summary", ""),
+        data_confidence=data.get("data_confidence", "seed"),
     )
 
 
@@ -337,6 +539,9 @@ def _booking_draft_from_dict(data: dict[str, Any]) -> BookingDraft:
         hold_id=data.get("hold_id", ""),
         confirm_token=data.get("confirm_token", ""),
         status=data.get("status", "pending_user_confirmation"),
+        data_source=data.get("data_source", "seed"),
+        data_confidence=data.get("data_confidence", "seed"),
+        updated_at=data.get("updated_at", ""),
         aa_draft=dict(data.get("aa_draft", {})),
         tool_events=[_tool_event_from_dict(item) for item in data.get("tool_events", [])],
     )

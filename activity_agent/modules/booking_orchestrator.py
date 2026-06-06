@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from activity_agent.domain.models import (
@@ -13,14 +14,18 @@ from activity_agent.domain.models import (
     TimelineType,
     UserRequest,
 )
+from activity_agent.providers import CommerceProvider, MockCommerceProvider
 from activity_agent.tools.mock_meituan import MockMeituanToolClient
 
 
 class BookingOrchestrator:
     """Creates semi-automatic booking drafts. It never performs irreversible payment."""
 
-    def __init__(self, tool_client: MockMeituanToolClient | None = None) -> None:
-        self.tool_client = tool_client or MockMeituanToolClient()
+    def __init__(self, tool_client: CommerceProvider | MockMeituanToolClient | None = None) -> None:
+        if tool_client is None:
+            self.tool_client: CommerceProvider = MockCommerceProvider(MockMeituanToolClient())
+        else:
+            self.tool_client = tool_client
 
     def create_draft(self, option: PlanOption, request: UserRequest, pay_mode: PayMode | None = None) -> BookingDraft:
         selected_pay_mode = pay_mode or (PayMode.AA_PREPAY if request.scene == Scene.FRIENDS else PayMode.SINGLE_PAY)
@@ -76,6 +81,9 @@ class BookingOrchestrator:
             confirmation_required=True,
             expires_at=str(hold_data["expires_at"]),
             safety_notice="半自动确认模式：Agent 可以生成待确认订单和 AA 方案，但不会未经授权支付或下不可逆订单。",
+            data_source="seed/mock_commerce",
+            data_confidence=option.data_confidence,
+            updated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             aa_draft=aa_draft,
             tool_events=events,
         )

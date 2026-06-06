@@ -9,6 +9,7 @@ from activity_agent.domain.models import (
     PlanOption,
     Scene,
     Theme,
+    ThemeSlot,
     TimelineItem,
     TimelineType,
     UserRequest,
@@ -63,10 +64,17 @@ class ItineraryComposer:
             booking_readiness=readiness,
             replaceable_slots=[item.type.value for item in items],
             risk_notes=risk_notes,
-            actions=DEFAULT_ACTIONS if request.scene == Scene.FRIENDS else ["确认约会", "换个轻一点的", "加礼物", "一键预约", "生成邀约话术"],
+            actions=self._actions_for(request),
             add_ons=theme.add_ons,
             invite_copy=self._invite_copy(theme, request),
             dating_tips=self._dating_tips(theme, request),
+            route_story=theme.route_story or theme.emotional_hook,
+            gain_points=theme.gain_points,
+            fallbacks=theme.fallbacks,
+            checkin_points=theme.checkin_points or [item.merchant_name for item in items if item.type == TimelineType.CHECKIN],
+            effort_level=theme.effort_level,
+            transport_summary=theme.transport_summary or self._transport_summary(items),
+            data_confidence=self._data_confidence(items),
         )
 
     def _to_timeline_item(
@@ -86,6 +94,10 @@ class ItineraryComposer:
             price_estimate=supply.price,
             why_this_fits=f"{label}：{supply.why}",
             booking_modes=supply.booking_modes,
+            area_cluster=supply.area_cluster,
+            checkin_hint=supply.checkin_value,
+            transport_hint=supply.transport_hint,
+            data_confidence=supply.data_confidence,
         )
 
     def _with_couple_addons(
@@ -102,7 +114,7 @@ class ItineraryComposer:
             if not any(item.type == gift_slot for item in items):
                 try:
                     supply = self.matcher.match_slot(
-                        slot=type("Slot", (), {"type": gift_slot, "desired_tags": ["小时达", "仪式感", "纪念日"]})(),
+                        slot=ThemeSlot(gift_slot, ["小时达", "仪式感", "纪念日"], "用低负担小惊喜补一个表达"),
                         request=request,
                         used_ids={item.merchant_id for item in items},
                     )
@@ -126,6 +138,10 @@ class ItineraryComposer:
             notes.append("已按不喝酒偏好过滤微醺/酒吧供给。")
         if any(item.type == TimelineType.HOTEL for item in items):
             notes.append("酒店/夜宿必须双方明确接受，并在支付前再次确认隐私、安全和退款规则。")
+        if request.weather_sensitive:
+            notes.append("天气为 seed 估算，出发前建议刷新确认；已优先安排室内或低天气风险供给。")
+        if any(item.data_confidence != "realtime" for item in items):
+            notes.append("路线、库存和价格当前为 seed/缓存估算，确认前需刷新。")
         return notes
 
     def _invite_copy(self, theme: Theme, request: UserRequest) -> str | None:
@@ -148,6 +164,10 @@ class ItineraryComposer:
         return tips
 
     def _start_time(self, request: UserRequest) -> datetime:
+        if request.journey_duration == "full_day":
+            return datetime(2026, 5, 28, 10, 30)
+        if request.journey_duration == "half_day" and "18:30" not in request.time_window:
+            return datetime(2026, 5, 28, 14, 0)
         if "15:00" in request.time_window:
             hour, minute = 15, 0
         elif "14:00" in request.time_window:
@@ -156,9 +176,29 @@ class ItineraryComposer:
             hour, minute = 18, 30
         return datetime(2026, 5, 28, hour, minute)
 
+    def _actions_for(self, request: UserRequest) -> list[str]:
+        if "杭州" in request.experience_tags or request.planning_effort == "zero_effort":
+            return ["就按这个走", "更近一点", "便宜点", "少走路", "改室内", "加拍照点", "一键预约"]
+        return DEFAULT_ACTIONS if request.scene == Scene.FRIENDS else ["确认约会", "换个轻一点的", "加礼物", "一键预约", "生成邀约话术"]
+
+    def _transport_summary(self, items: list[TimelineItem]) -> str:
+        clusters = [item.area_cluster for item in items if item.area_cluster]
+        if not clusters:
+            return "路线为 seed 估算，建议出发前刷新地图。"
+        if len(set(clusters)) == 1:
+            return "同片区步行串联，通勤压力低。"
+        return "包含跨片区移动，建议预留地铁或打车时间。"
+
+    def _data_confidence(self, items: list[TimelineItem]) -> str:
+        values = {item.data_confidence for item in items}
+        if "realtime" in values and len(values) == 1:
+            return "realtime"
+        if "cache" in values:
+            return "cache"
+        return "seed"
+
     def _distance_for(self, item: TimelineItem) -> float:
         for supply in self.matcher.catalog:
             if supply.id == item.merchant_id:
                 return supply.distance_km
         return 0.0
-

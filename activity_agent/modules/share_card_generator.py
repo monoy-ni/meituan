@@ -13,6 +13,8 @@ class ShareCardGenerator:
             option.emotional_hook,
             "",
         ]
+        if option.route_story:
+            lines.extend(["路线：", option.route_story, ""])
         for item in option.timeline_items:
             lines.append(
                 f"{item.start_time}-{item.end_time}  {item.merchant_name}｜{item.why_this_fits.split('：', 1)[0]}"
@@ -24,11 +26,20 @@ class ShareCardGenerator:
                 f"适合：{self._fit_text(request)}",
                 f"人均：约 {option.estimated_cost_per_person} 元",
                 f"距离：全程约 {option.total_distance}km",
+                f"体力：{option.effort_level}",
+                f"交通：{option.transport_summary}",
+                f"数据：{option.data_confidence}",
                 f"预约状态：{option.booking_readiness.value}",
                 "可替换：" + " / ".join(option.replaceable_slots),
             ]
         )
 
+        if option.gain_points:
+            lines.append("获得感：" + "；".join(option.gain_points))
+        if option.checkin_points:
+            lines.append("打卡点：" + " / ".join(option.checkin_points))
+        if option.fallbacks:
+            lines.append("兜底：" + "；".join(option.fallbacks[:3]))
         if option.risk_notes:
             lines.append("注意：" + "；".join(option.risk_notes))
 

@@ -1,125 +1,179 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { createSession, sendChatMessage, selectOption, createBookingDraft, confirmBooking } from './api';
-import ChatMessage from './components/ChatMessage';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  confirmBooking,
+  createBookingDraft,
+  createSession,
+  generateItineraries,
+  getFeaturedItineraries,
+  getThemes,
+  refreshItinerary,
+  selectOption,
+  sendChatMessage,
+} from './api';
 import ActivityCard from './components/ActivityCard';
-import BookingDraft from './components/BookingDraft';
 import BookingConfirmation from './components/BookingConfirmation';
+import BookingDraft from './components/BookingDraft';
 import './App.css';
+
+const QUICK_TUNES = [
+  { label: '更近一点', message: '更近一点' },
+  { label: '便宜点', message: '便宜点' },
+  { label: '少走路', message: '少走路，不想太累' },
+  { label: '改室内', message: '改室内，雨天也稳' },
+  { label: '加拍照点', message: '加拍照点' },
+];
 
 function App() {
   const [sessionId, setSessionId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [inputText, setInputText] = useState('');
+  const [themes, setThemes] = useState([]);
   const [options, setOptions] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
   const [bookingDraft, setBookingDraft] = useState(null);
   const [bookingConfirmation, setBookingConfirmation] = useState(null);
+  const [refreshNotes, setRefreshNotes] = useState({});
+  const [activeThemeId, setActiveThemeId] = useState(null);
+  const [inputText, setInputText] = useState('');
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const visibleOptions = useMemo(() => options.slice(0, 3), [options]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    initSession();
-  }, []);
-
-  const initSession = async () => {
-    try {
-      const data = await createSession();
-      setSessionId(data.session_id);
-      
-      setMessages([{
-        role: 'assistant',
-        content: '你好！我是你的活动规划助手。想和朋友聚聚，还是想安排约会？告诉我你的想法，我来帮你规划！'
-      }]);
-    } catch (error) {
-      console.error('初始化会话失败:', error);
-    }
-  };
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!inputText.trim() || isLoading) return;
-
-    const userMessage = { role: 'user', content: inputText };
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
+  const loadHome = useCallback(async () => {
     setIsLoading(true);
-
+    setError('');
     try {
-      const response = await sendChatMessage(sessionId, inputText);
-      
-      const assistantMessage = {
-        role: 'assistant',
-        content: response.message
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-      
-      if (response.options && response.options.length > 0) {
-        setOptions(response.options);
-      } else {
-        setOptions([]);
-      }
-      
+      const session = await createSession();
+      setSessionId(session.session_id);
+
+      const [themeData, featuredData] = await Promise.all([
+        getThemes('hangzhou'),
+        getFeaturedItineraries({ city: 'hangzhou', duration: 'half_day', sessionId: session.session_id }),
+      ]);
+
+      setThemes(themeData.themes || []);
+      setOptions(featuredData.options || []);
+      setSelectedOption((featuredData.options || [])[0] || null);
       setBookingDraft(null);
       setBookingConfirmation(null);
-    } catch (error) {
-      console.error('发送消息失败:', error);
+      setRefreshNotes({});
+    } catch (err) {
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    loadHome();
+  }, [loadHome]);
+
+  const applyResponse = (response) => {
+    const nextOptions = response.options || [];
+    setOptions(nextOptions);
+    setSelectedOption(nextOptions[0] || null);
+    setBookingDraft(null);
+    setBookingConfirmation(null);
+    setRefreshNotes({});
+  };
+
+  const handleThemeClick = async (theme) => {
+    if (!sessionId || isLoading) return;
+    setIsLoading(true);
+    setError('');
+    setActiveThemeId(theme.id);
+    try {
+      const response = await generateItineraries({
+        session_id: sessionId,
+        city: 'hangzhou',
+        theme_id: theme.id,
+        duration: theme.duration,
+        experience_tags: theme.experience_tags || [],
+      });
+      applyResponse(response);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTune = async (message) => {
+    if (!sessionId || isLoading) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      const response = await sendChatMessage(sessionId, message);
+      applyResponse(response);
+      setInputText('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmitTune = (event) => {
+    event.preventDefault();
+    if (!inputText.trim()) return;
+    handleTune(inputText.trim());
   };
 
   const handleSelectOption = async (option) => {
+    if (!sessionId) return;
     setSelectedOption(option);
-    setIsLoading(true);
-    
+    setBookingDraft(null);
+    setBookingConfirmation(null);
+    setError('');
     try {
-      const response = await selectOption(sessionId, option.id);
-      
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: response.message
-      }]);
-      
-    } catch (error) {
-      console.error('选择方案失败:', error);
+      await selectOption(sessionId, option.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleRefresh = async (option) => {
+    if (!sessionId || isLoading) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      const result = await refreshItinerary(sessionId, option.id);
+      setRefreshNotes((current) => ({
+        ...current,
+        [option.id]: result.message || result.route?.message || '已刷新',
+      }));
+    } catch (err) {
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleBook = async () => {
-    if (!selectedOption) return;
-    
+  const handleBook = async (option = selectedOption) => {
+    if (!sessionId || !option || isLoading) return;
     setIsLoading(true);
+    setError('');
     try {
-      const draft = await createBookingDraft(sessionId, selectedOption.id);
+      const draft = await createBookingDraft(sessionId, option.id);
+      setSelectedOption(option);
       setBookingDraft(draft);
-    } catch (error) {
-      console.error('创建预约失败:', error);
+      setBookingConfirmation(null);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleConfirmBooking = async (confirm) => {
-    if (!bookingDraft) return;
-    
+    if (!sessionId || !bookingDraft || isLoading) return;
     setIsLoading(true);
+    setError('');
     try {
       const confirmation = await confirmBooking(sessionId, bookingDraft.draft_id, confirm);
       setBookingConfirmation(confirmation);
       setBookingDraft(null);
-    } catch (error) {
-      console.error('确认预约失败:', error);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -127,80 +181,106 @@ function App() {
 
   return (
     <div className="app">
-      <div className="app-container">
-        <header className="app-header">
-          <h1>🎉 智能活动规划助手</h1>
-          <p>为朋友聚会和情侣约会提供最佳方案</p>
+      <main className="app-shell">
+        <header className="hero-band">
+          <div>
+            <p className="eyebrow">杭州本地一日主题局</p>
+            <h1>今天不用想，选一个杭州局出门</h1>
+            <p className="hero-copy">吃、玩、打卡收成一条线，默认少折返，预算和雨天都有兜底。</p>
+          </div>
+          <div className="version-stack">
+            <span>后端 v1.4.0</span>
+            <span>前端 v0.5.0</span>
+          </div>
         </header>
 
-        <div className="chat-container">
-          <div className="chat-messages">
-            {messages.map((msg, index) => (
-              <ChatMessage key={index} role={msg.role} content={msg.content} />
-            ))}
-            
-            {options.length > 0 && !bookingDraft && !bookingConfirmation && (
-              <div className="options-container">
-                <h3>为你推荐的活动方案：</h3>
-                <div className="activity-cards">
-                  {options.map((option, index) => (
-                    <ActivityCard
-                      key={option.id}
-                      option={option}
-                      isSelected={selectedOption?.id === option.id}
-                      onSelect={() => handleSelectOption(option)}
-                    />
-                  ))}
-                </div>
-                {selectedOption && (
-                  <div className="action-buttons">
-                    <button className="btn btn-primary" onClick={handleBook} disabled={isLoading}>
-                      {isLoading ? '处理中...' : '立即预约'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+        {error && (
+          <section className="error-banner" role="alert">
+            <span>{error}</span>
+            <button type="button" onClick={loadHome}>重试</button>
+          </section>
+        )}
 
-            {bookingDraft && (
-              <BookingDraft
-                draft={bookingDraft}
-                onConfirm={() => handleConfirmBooking(true)}
-                onCancel={() => handleConfirmBooking(false)}
-                isLoading={isLoading}
-              />
-            )}
+        <section className="theme-row" aria-label="杭州主题">
+          {themes.map((theme) => (
+            <button
+              key={theme.id}
+              type="button"
+              className={`theme-chip ${activeThemeId === theme.id ? 'active' : ''}`}
+              onClick={() => handleThemeClick(theme)}
+              disabled={isLoading}
+            >
+              <span>{theme.name}</span>
+              <small>{(theme.experience_tags || []).slice(0, 2).join(' / ')}</small>
+            </button>
+          ))}
+        </section>
 
-            {bookingConfirmation && (
-              <BookingConfirmation confirmation={bookingConfirmation} />
-            )}
-
-            {isLoading && (
-              <div className="loading-indicator">
-                <div className="spinner"></div>
-                <span>AI 正在思考中...</span>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+        <section className="route-section">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">现成局</p>
+              <h2>先给你三条能直接走的路线</h2>
+            </div>
+            <button type="button" className="secondary-action" onClick={loadHome} disabled={isLoading}>
+              换一组
+            </button>
           </div>
 
-          <form className="chat-input-form" onSubmit={handleSendMessage}>
+          <div className="activity-cards">
+            {visibleOptions.map((option) => (
+              <ActivityCard
+                key={option.id}
+                option={option}
+                isSelected={selectedOption?.id === option.id}
+                refreshNote={refreshNotes[option.id]}
+                onSelect={() => handleSelectOption(option)}
+                onRefresh={() => handleRefresh(option)}
+                onBook={() => handleBook(option)}
+                isLoading={isLoading}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="tune-panel">
+          <div className="quick-tunes">
+            {QUICK_TUNES.map((tune) => (
+              <button key={tune.label} type="button" onClick={() => handleTune(tune.message)} disabled={isLoading || !sessionId}>
+                {tune.label}
+              </button>
+            ))}
+          </div>
+          <form className="tune-form" onSubmit={handleSubmitTune}>
             <input
-              type="text"
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="告诉我你的想法，比如：今晚想找朋友聚聚..."
-              disabled={isLoading}
+              onChange={(event) => setInputText(event.target.value)}
+              placeholder="比如：人均 150，想走运河，少走路"
+              disabled={isLoading || !sessionId}
             />
             <button type="submit" disabled={isLoading || !inputText.trim()}>
-              发送
+              调整
             </button>
           </form>
-        </div>
-      </div>
+        </section>
+
+        {bookingDraft && (
+          <BookingDraft
+            draft={bookingDraft}
+            onConfirm={() => handleConfirmBooking(true)}
+            onCancel={() => handleConfirmBooking(false)}
+            isLoading={isLoading}
+          />
+        )}
+
+        {bookingConfirmation && (
+          <BookingConfirmation confirmation={bookingConfirmation} />
+        )}
+
+        {isLoading && <div className="loading-bar">正在整理路线</div>}
+      </main>
     </div>
   );
 }
 
 export default App;
-

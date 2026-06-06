@@ -35,10 +35,20 @@ class StorageSettings:
 @dataclass(frozen=True)
 class ToolSettings:
     mode: str = "mock"
+    data_mode: str = "seed"
+    map_provider: str = "none"
+    amap_api_key: str | None = None
+    tencent_map_api_key: str | None = None
 
     @classmethod
     def from_env(cls) -> "ToolSettings":
-        return cls(mode=os.getenv("ACTIVITY_AGENT_TOOL_MODE", cls.mode))
+        return cls(
+            mode=os.getenv("ACTIVITY_AGENT_TOOL_MODE", cls.mode),
+            data_mode=os.getenv("ACTIVITY_AGENT_DATA_MODE", cls.data_mode),
+            map_provider=os.getenv("ACTIVITY_AGENT_MAP_PROVIDER", cls.map_provider),
+            amap_api_key=os.getenv("AMAP_API_KEY") or None,
+            tencent_map_api_key=os.getenv("TENCENT_MAP_API_KEY") or None,
+        )
 
 
 @dataclass(frozen=True)
@@ -54,4 +64,3 @@ class AgentSettings:
             storage=StorageSettings.from_env(),
             tools=ToolSettings.from_env(),
         )
-

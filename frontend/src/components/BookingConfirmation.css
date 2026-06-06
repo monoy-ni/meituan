@@ -1,51 +1,64 @@
-
 .booking-confirmation {
-  background: white;
-  border-radius: 12px;
-  padding: 30px;
-  margin: 10px 0;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #d7e0de;
+  border-radius: 8px;
 }
 
 .booking-confirmation.success {
-  border: 2px solid #28a745;
+  border-color: #0f766e;
 }
 
 .booking-confirmation.cancelled {
-  border: 2px solid #dc3545;
+  border-color: #efb7ae;
 }
 
-.confirmation-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
+.confirmation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.booking-confirmation h3 {
-  font-size: 24px;
-  margin-bottom: 12px;
-  color: #333;
+.confirmation-header p {
+  order: 2;
+  margin: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #f2f5f5;
+  color: #52636d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.confirmation-header h3 {
+  margin: 0;
+  color: #17212b;
+  font-size: 22px;
 }
 
 .confirmation-message {
-  font-size: 16px;
-  color: #666;
-  margin-bottom: 24px;
-  line-height: 1.5;
+  margin: 0;
+  color: #3f4f5a;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .order-ids {
-  background: #f8f9fa;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: #f7f9f9;
   border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-  text-align: left;
 }
 
 .order-ids h4 {
-  font-size: 14px;
-  color: #495057;
-  margin-bottom: 12px;
+  margin: 0;
+  color: #17212b;
+  font-size: 13px;
 }
 
 .id-list {
@@ -55,29 +68,18 @@
 }
 
 .order-id {
-  background: white;
-  padding: 6px 14px;
-  border-radius: 16px;
-  font-size: 13px;
-  color: #667eea;
-  font-family: monospace;
-  border: 1px solid #e9ecef;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #d7e0de;
+  color: #0f766e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
 }
 
-.next-steps {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #e9ecef;
+@media (max-width: 640px) {
+  .confirmation-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
-
-.next-steps p {
-  font-size: 16px;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.next-steps .sub-text {
-  font-size: 14px;
-  color: #666;
-}
-

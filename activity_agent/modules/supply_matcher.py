@@ -41,6 +41,8 @@ class SupplyMatcher:
             return False
         if constraints.get("indoor_only") and "室内" not in supply.tags and supply.type.value not in {"dining", "hotel", "gift"}:
             return False
+        if request.weather_sensitive and not set(supply.weather_fit) & {"rain", "rainy", "light_rain"} and constraints.get("indoor_only"):
+            return False
         if constraints.get("quiet") and ("热闹" in supply.tags or "发疯" in supply.tags):
             return False
         if request.relationship_stage == "暧昧/追求中" and supply.type.value == "hotel":
@@ -48,10 +50,13 @@ class SupplyMatcher:
         return True
 
     def _score_supply(self, supply: MerchantSupply, slot: ThemeSlot, request: UserRequest, per_slot_budget: int) -> int:
-        desired_score = 6 * len(set(supply.tags) & set(slot.desired_tags))
-        mood_score = 3 * len(set(supply.tags) & set(request.mood_tags))
+        supply_tags = set([*supply.tags, *supply.local_flavor_tags])
+        desired_score = 6 * len(supply_tags & set(slot.desired_tags))
+        mood_score = 3 * len(supply_tags & set([*request.mood_tags, *request.experience_tags]))
+        area_score = 6 if slot.area_clusters and supply.area_cluster in slot.area_clusters else 0
+        weather_score = 4 if request.weather_sensitive and set(supply.weather_fit) & {"rain", "rainy", "light_rain"} else 0
+        checkin_score = 2 if supply.checkin_value else 0
         price_score = 5 if supply.price <= per_slot_budget else -min(8, int((supply.price - per_slot_budget) / 30))
         distance_score = max(0, 4 - int(supply.distance_km))
         booking_score = 2 if any(mode in supply.booking_modes for mode in ["reservation", "ticket", "group_buy", "hotel"]) else 0
-        return desired_score + mood_score + price_score + distance_score + booking_score
-
+        return desired_score + mood_score + area_score + weather_score + checkin_score + price_score + distance_score + booking_score
