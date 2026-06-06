@@ -18,3 +18,5 @@ activity_agent.sqlite3
 dist/
 build/
 *.egg-info/
+
+node_modules/
