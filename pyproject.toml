@@ -1,0 +1,10 @@
+[project]
+name = "activity-planning-agent"
+version = "1.0.0"
+description = "Python MVP for a local activity planning, booking draft, and review agent."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
