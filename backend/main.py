@@ -4,7 +4,7 @@ import os
 import sys
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -243,6 +243,11 @@ def create_session() -> dict[str, str]:
     session = agent.start_session()
     sessions[session.id] = session
     return {"session_id": session.id}
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> Response:
+    return Response(status_code=204)
 
 
 @app.get("/api/themes")
