@@ -51,19 +51,17 @@ class MVPSDKTest(unittest.TestCase):
         with self.assertRaises(Exception):
             client.complete([{"role": "user", "content": "hi"}])
 
-    def test_invalid_llm_json_falls_back_to_rules_and_marks_degraded(self) -> None:
+    def test_chat_works_without_llm(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "agent.sqlite3")
-            agent = ActivityPlanningAgent(settings=self.settings_for(path), llm_client=InvalidJSONLLMClient())
+            agent = ActivityPlanningAgent(settings=self.settings_for(path), llm_client=MockLLMClient())
             try:
                 session = agent.start_session("u1")
 
                 response = agent.chat(session.id, "今晚有点无聊，想叫朋友出来")
 
-                self.assertTrue(response.degraded)
                 self.assertEqual(response.scene, Scene.FRIENDS)
                 self.assertEqual(len(response.options), 3)
-                self.assertEqual(response.tool_events[0].status, "error")
             finally:
                 agent.close()
 

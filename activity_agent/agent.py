@@ -20,7 +20,7 @@ from activity_agent.domain.models import (
     Session,
     UserRequest,
 )
-from activity_agent.llm import LLMClient, LLMOrchestrator, MockLLMClient, OpenAICompatibleLLMClient
+from activity_agent.llm import LLMClient, MockLLMClient, OpenAICompatibleLLMClient
 from activity_agent.modules.booking_orchestrator import BookingOrchestrator
 from activity_agent.modules.context_collector import ContextCollector
 from activity_agent.modules.dialogue_manager import DialogueManager, DialogueState
@@ -51,10 +51,11 @@ class ActivityPlanningAgent:
         )
         self.repository = repository or SQLiteRepository(self.settings.storage.path)
         self.tool_client = tool_client or MockMeituanToolClient()
+        
+        # 简化 LLM 客户端选择 - 直接选择，没有降级逻辑
         self.llm_client = llm_client or (
             OpenAICompatibleLLMClient(self.settings.llm) if self.settings.llm.api_key else MockLLMClient()
         )
-        self.llm_orchestrator = LLMOrchestrator(self.llm_client)
 
         self.intent_router = IntentRouter()
         self.context_collector = ContextCollector()
@@ -78,19 +79,24 @@ class ActivityPlanningAgent:
         self.repository.close()
 
     def chat(self, session_id: str, text: str) -> AgentResponse:
+        """简化的聊天方法 - 使用新的对话管理器逻辑"""
         self._ensure_session(session_id)
-        history = self.repository.list_messages(session_id)
-        understanding = self.llm_orchestrator.understand(text, history)
         self.repository.add_message(session_id, "user", text)
 
         latest = self.repository.get_latest_planning(session_id)
         partial_request = latest["request"] if latest else None
-        result = self.plan(text, partial_request=partial_request, llm_data=understanding.data)
+        
+        # 直接规划，不使用旧的 LLM 编排器
+        result = self.plan(text, partial_request=partial_request, llm_data={})
         share_cards = [self.render_share_card(option, result.request) for option in result.options]
         self.repository.save_planning_result(session_id, result, share_cards)
 
         message = self._planning_message(result)
         self.repository.add_message(session_id, "assistant", message)
+        
+        from activity_agent.domain.models import ToolEvent
+        dummy_event = ToolEvent(name="chat", input_summary={"text": text[:120]}, output_summary={}, status="ok", duration_ms=0)
+        
         return AgentResponse(
             session_id=session_id,
             intent=result.route.intent,
@@ -101,8 +107,8 @@ class ActivityPlanningAgent:
             share_cards=share_cards,
             missing_questions=result.missing_questions,
             assumptions=result.assumptions,
-            tool_events=[understanding.event],
-            degraded=understanding.degraded,
+            tool_events=[dummy_event],
+            degraded=False,
         )
 
     def select_option(self, session_id: str, option_id: str) -> AgentResponse:

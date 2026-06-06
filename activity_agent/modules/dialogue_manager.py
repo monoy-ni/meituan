@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Optional
+from datetime import datetime
 
 from activity_agent.domain.models import Intent, Scene, UserRequest
 from activity_agent.llm import LLMClient, MockLLMClient
@@ -25,7 +26,7 @@ class DialogueState(StrEnum):
 
 @dataclass
 class UserUnderstanding:
-    """LLM 理解的用户需求结构化结果"""
+    """LLM 理解的用户需求结构化结果 - 统一的理解层"""
     scene: Optional[Scene] = None
     relationship_stage: Optional[str] = None
     relationship_goal: Optional[str] = None
@@ -34,7 +35,7 @@ class UserUnderstanding:
     time_window: Optional[str] = None
     location: Optional[str] = None
     constraints: dict[str, bool] = field(default_factory=dict)
-    confidence: float = 0.0
+    confidence: float = 0.6  # 规则解析的默认置信度
 
 
 @dataclass
@@ -50,12 +51,9 @@ class DialogueContext:
 
 class DialogueManager:
     """
-    智能对话管理器 - 使用 LLM 理解用户意图，而不是简单的关键字匹配
-
-    特性:
-    - LLM 优先理解用户真实意图
-    - 自然语言推断，不依赖硬编码关键字
-    - 智能降级机制，无 LLM 时回退到规则
+    智能对话管理器 - 统一的 LLM + 规则混合理解层
+    
+    不再有 L1/L2 分层，所有理解逻辑集中在这里
     """
 
     def __init__(self, llm_client: Optional[LLMClient] = None) -> None:
@@ -68,14 +66,29 @@ class DialogueManager:
             self.contexts[session_id] = DialogueContext()
         return self.contexts[session_id]
 
-    def _understand_with_llm(self, text: str, history: list[dict[str, str]] | None = None) -> UserUnderstanding:
+    def _understand(self, text: str, history: list[dict[str, str]] | None = None) -> UserUnderstanding:
         """
-        使用 LLM 深度理解用户意图
+        统一理解入口：尝试 LLM -> 失败则回退规则
+        
+        不再有 L1/L2 分层，所有理解在这里完成
         """
         understanding = UserUnderstanding()
+        
+        if self._use_llm:
+            try:
+                understanding = self._understand_with_llm(text, history)
+                if understanding.confidence >= 0.3:
+                    return understanding
+            except Exception:
+                pass
+        
+        return self._understand_with_rules(text)
 
-        try:
-            system_prompt = """你是一个活动规划助手，负责理解用户的需求。请仔细分析用户的话，提取以下信息，以JSON格式返回：
+    def _understand_with_llm(self, text: str, history: list[dict[str, str]] | None = None) -> UserUnderstanding:
+        """使用 LLM 深度理解（统一的 LLM 调用层）"""
+        understanding = UserUnderstanding(confidence=0.5)
+        
+        system_prompt = """你是一个活动规划助手，负责理解用户的需求。请仔细分析用户的话，提取以下信息，以JSON格式返回：
 
 {
   "scene": "friends" 或 "couple"，根据用户说的话判断是朋友聚会还是情侣约会，拿不准就null,
@@ -97,48 +110,43 @@ class DialogueManager:
 注意：
 - 如果用户提到"怕尴尬"、"约她"、"约他"、"第一次"，relationship_stage很可能是"暧昧/追求中"
 - 如果用户提到"纪念日"、"惊喜"、"浪漫"，scene很可能是"couple"
-- 如果用户提到"朋友"、"聚聚"、"哥们"、"姐们"、"大家"，scene很可能是"friends"
+- 如果用户提到"朋友"、"聚聚"、"哥们"、"姐妹"、"大家"，scene很可能是"friends"
 - 只返回JSON，不要其他文字
 """
 
-            messages = [{"role": "system", "content": system_prompt}]
-            if history:
-                messages.extend(history[-3:])
-            messages.append({"role": "user", "content": text})
+        messages = [{"role": "system", "content": system_prompt}]
+        if history:
+            messages.extend(history[-3:])
+        messages.append({"role": "user", "content": text})
 
-            try:
-                response = self.llm_client.complete(messages)
-                import json
-                result = json.loads(response)
+        try:
+            response = self.llm_client.complete(messages)
+            import json
+            result = json.loads(response)
 
-                if result:
-                    understanding.scene = Scene(result["scene"]) if result.get("scene") in ["friends", "couple"] else None
-                    understanding.relationship_stage = result.get("relationship_stage")
-                    understanding.relationship_goal = result.get("relationship_goal")
-                    understanding.mood_tags = result.get("mood_tags", [])
-                    understanding.budget = result.get("budget")
-                    understanding.time_window = result.get("time")
-                    understanding.constraints = result.get("constraints", {})
-                    understanding.confidence = result.get("confidence", 0.5)
-
-            except Exception:
-                pass
-
+            if result:
+                if result.get("scene") in ["friends", "couple"]:
+                    understanding.scene = Scene(result["scene"])
+                understanding.relationship_stage = result.get("relationship_stage")
+                understanding.relationship_goal = result.get("relationship_goal")
+                understanding.mood_tags = result.get("mood_tags", [])
+                understanding.budget = result.get("budget")
+                understanding.time_window = result.get("time")
+                understanding.constraints = result.get("constraints", {})
+                understanding.confidence = result.get("confidence", 0.5)
         except Exception:
             pass
 
         return understanding
 
     def _understand_with_rules(self, text: str) -> UserUnderstanding:
-        """
-        降级方案：规则匹配（当没有 LLM 时使用）
-        """
+        """降级方案：规则解析（当 LLM 不可用时）"""
         understanding = UserUnderstanding(confidence=0.6)
 
         text_lower = text.lower()
 
         friends_keywords = ["朋友", "聚聚", "局", "哥们", "姐妹", "同事", "大家", "几个人"]
-        couple_keywords = ["约会", "对象", "女朋友", "男朋友", "ta", "两个人", "纪念日", "惊喜", "浪漫", "暧昧", "浪漫"]
+        couple_keywords = ["约会", "对象", "女朋友", "男朋友", "ta", "两个人", "纪念日", "惊喜", "浪漫", "暧昧"]
 
         has_friends = any(k in text for k in friends_keywords)
         has_couple = any(k in text_lower for k in couple_keywords)
@@ -168,7 +176,7 @@ class DialogueManager:
             (["拍照", "出片", "好看"], ["出片"]),
             (["省钱", "便宜", "预算"], ["省钱"]),
             (["安静", "不吵"], ["安静"]),
-            (["浪漫", "惊喜", "惊喜"], ["浪漫"]),
+            (["浪漫", "惊喜"], ["浪漫"]),
         ]
 
         for keywords, tags in mood_mapping:
@@ -180,14 +188,7 @@ class DialogueManager:
         if budget_match:
             understanding.budget = int(budget_match.group(1))
 
-        if "今晚" in text:
-            understanding.time_window = "今晚"
-        elif "明晚" in text:
-            understanding.time_window = "明晚"
-        elif "周末" in text:
-            understanding.time_window = "周末"
-        elif "下午" in text:
-            understanding.time_window = "周末下午"
+        understanding.time_window = self._parse_time_window_with_local_time(text)
 
         understanding.constraints = {
             "no_alcohol": "不喝酒" in text or "不要酒" in text,
@@ -199,24 +200,36 @@ class DialogueManager:
 
         return understanding
 
-    def _understand(self, text: str, history: list[dict[str, str]] | None = None) -> UserUnderstanding:
+    def _parse_time_window_with_local_time(self, text: str) -> Optional[str]:
         """
-        综合理解用户意图：LLM 优先，失败则回退到规则
+        时间窗口解析 - 使用本地真实时间
+        
+        根据当前时间和用户输入智能推断合适的时间窗口
         """
-        if self._use_llm:
-            try:
-                understanding = self._understand_with_llm(text, history)
-                if understanding.confidence >= 0.3:
-                    return understanding
-            except Exception:
-                pass
+        now = datetime.now()
+        current_hour = now.hour
 
-        return self._understand_with_rules(text)
+        if "今晚" in text or "今天晚上" in text:
+            if current_hour < 17:
+                return f"today 18:30-23:30"
+            elif current_hour < 20:
+                return f"today {current_hour+1}:00-23:30"
+            else:
+                return f"today 20:00-23:00"
+        elif "明晚" in text or "明天晚上" in text:
+            return f"tomorrow 18:30-23:30"
+        elif "周五" in text:
+            return f"friday 18:30-23:30"
+        elif "周末" in text:
+            return f"weekend 15:00-23:30"
+        elif "下午" in text:
+            return f"selected_day 15:00-20:30"
+        elif "晚上" in text:
+            return f"selected_day 18:30-23:30"
+        return None
 
     def _generate_response(self, ctx: DialogueContext, understanding: UserUnderstanding) -> tuple[str, bool]:
-        """
-        根据理解结果生成回复，并决定是否继续对话
-        """
+        """根据理解结果生成回复，并决定是否继续对话"""
         info = ctx.collected_info
 
         if ctx.state == DialogueState.INIT:
@@ -291,7 +304,7 @@ class DialogueManager:
             return "选好了！需要调整什么吗，还是直接帮你预约？", True
 
         if ctx.state == DialogueState.AWAITING_FEEDBACK:
-            if "预约" in understanding.mood_tags:
+            if "预约" in text or "确定" in text or "下单" in text:
                 ctx.state = DialogueState.READY_TO_BOOK
                 return "好的，这就帮你安排预约！", False
             else:
@@ -322,9 +335,8 @@ class DialogueManager:
     ) -> tuple[DialogueContext, str, bool]:
         """
         处理用户输入，返回更新后的上下文、回复消息、是否需要继续对话
-
-        Returns:
-            (context, response_message, should_continue)
+        
+        统一的处理入口
         """
         ctx = self.get_or_create_context(session_id)
         ctx.messages.append({"role": "user", "content": text})
@@ -348,4 +360,3 @@ class DialogueManager:
     def mark_completed(self, session_id: str) -> None:
         ctx = self.get_or_create_context(session_id)
         ctx.state = DialogueState.COMPLETED
-

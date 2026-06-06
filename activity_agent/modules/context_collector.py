@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import replace
+from datetime import datetime
 
 from activity_agent.domain.models import RouteResult, Scene, UserRequest
 
@@ -61,41 +62,54 @@ def _unique(values: list[str]) -> list[str]:
 
 
 def _parse_budget(text: str) -> int | None:
-    explicit = re.search(r"(?:人均|预算|每人|控制在|控在)\D{0,6}(\d{2,4})", text)
+    explicit = re.search(r'(?:人均|预算|每人|控制在|控在)\D{0,6}(\d{2,4})', text)
     if explicit:
         return int(explicit.group(1))
-    loose = re.search(r"(\d{2,4})\s*(?:元|块|rmb|RMB)", text)
+    loose = re.search(r'(\d{2,4})\s*(?:元|块|rmb|RMB)', text)
     return int(loose.group(1)) if loose else None
 
 
 def _parse_party_size(text: str, scene: Scene) -> int | None:
-    range_match = re.search(r"(\d+)\s*[-~到至]\s*(\d+)\s*(?:个人|人)", text)
+    range_match = re.search(r'(\d+)\s*[-~到至]\s*(\d+)\s*(?:个人|人)', text)
     if range_match:
         return int(range_match.group(2))
-    explicit = re.search(r"(\d+)\s*(?:个人|人)", text)
+    explicit = re.search(r'(\d+)\s*(?:个人|人)', text)
     if explicit:
         return int(explicit.group(1))
     return 2 if scene == Scene.COUPLE else None
 
 
 def _parse_time_window(text: str, scene: Scene) -> str | None:
+    """
+    时间窗口解析 - 使用本地真实时间
+    
+    根据当前时间和用户输入智能推断合适的时间窗口
+    """
+    now = datetime.now()
+    current_hour = now.hour
+
     if "今晚" in text or "今天晚上" in text:
-        return "today 18:30-23:30"
-    if "明晚" in text or "明天晚上" in text:
+        if current_hour < 17:
+            return "today 18:30-23:30"
+        elif current_hour < 20:
+            return f"today {current_hour+1}:00-23:30"
+        else:
+            return "today 20:00-23:00"
+    elif "明晚" in text or "明天晚上" in text:
         return "tomorrow 18:30-23:30"
-    if "周五" in text:
+    elif "周五" in text:
         return "friday 18:30-23:30"
-    if "周末" in text:
+    elif "周末" in text:
         return "weekend 15:00-23:30" if scene == Scene.COUPLE else "weekend 14:00-22:30"
-    if "下午" in text:
-        return "selected day 15:00-20:30"
-    if "晚上" in text:
-        return "selected day 18:30-23:30"
+    elif "下午" in text:
+        return "selected_day 15:00-20:30"
+    elif "晚上" in text:
+        return "selected_day 18:30-23:30"
     return None
 
 
 def _parse_location(text: str) -> str | None:
-    match = re.search(r"(?:在|从|离|附近|靠近)([\u4e00-\u9fa5A-Za-z0-9]{2,12})(?:附近|出发|周边|这边)?", text)
+    match = re.search(r'(?:在|从|离|附近|靠近)([\u4e00-\u9fa5A-Za-z0-9]{2,12})(?:附近|出发|周边|这边)?', text)
     if match:
         return match.group(1)
     if "别太远" in text or "附近" in text:
