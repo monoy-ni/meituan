@@ -19,6 +19,11 @@ const confidenceLabel = {
 
 const ActivityCard = ({ option, isSelected, refreshNote, onSelect, onRefresh, onBook, isLoading }) => {
   const firstCluster = option.timeline_items?.find((item) => item.area_cluster)?.area_cluster || 'hangzhou';
+  const experienceCard = option.experience_card || {};
+  const experienceFlow = Array.isArray(experienceCard.flow) ? experienceCard.flow : [];
+  const vibeTags = Array.isArray(experienceCard.vibe_tags) ? experienceCard.vibe_tags : [];
+  const signatureMoments = Array.isArray(experienceCard.signature_moments) ? experienceCard.signature_moments : [];
+  const hostTips = Array.isArray(experienceCard.host_tips) ? experienceCard.host_tips : [];
 
   return (
     <article className={`activity-card ${isSelected ? 'selected' : ''}`}>
@@ -54,6 +59,51 @@ const ActivityCard = ({ option, isSelected, refreshNote, onSelect, onRefresh, on
           </li>
         ))}
       </ol>
+
+      {experienceCard.title && (
+        <section className="experience-card-panel">
+          <div className="experience-heading">
+            <span>{experienceCard.designer === 'couple-date-designer' ? '约会玩法卡' : '主题局玩法卡'}</span>
+            <strong>{experienceCard.title}</strong>
+          </div>
+          {experienceCard.theme_line && <p className="experience-line">{experienceCard.theme_line}</p>}
+          {vibeTags.length > 0 && (
+            <div className="experience-tags">
+              {vibeTags.slice(0, 4).map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
+            </div>
+          )}
+          {experienceCard.play_style && (
+            <div className="experience-style">
+              <span>玩法</span>
+              <p>{experienceCard.play_style}</p>
+            </div>
+          )}
+          {experienceFlow.length > 0 && (
+            <ol className="experience-flow">
+              {experienceFlow.slice(0, 4).map((flowItem) => (
+                <li key={`${option.id}-${flowItem.merchant_id}-${flowItem.role}`}>
+                  <span>{flowItem.role}</span>
+                  <p>{flowItem.experience}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+          {signatureMoments.length > 0 && (
+            <div className="experience-style">
+              <span>记忆点</span>
+              <p>{signatureMoments.slice(0, 3).join(' / ')}</p>
+            </div>
+          )}
+          {hostTips.length > 0 && (
+            <div className="experience-style">
+              <span>{experienceCard.designer === 'couple-date-designer' ? '提醒' : '组局'}</span>
+              <p>{hostTips.slice(0, 3).join(' / ')}</p>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="info-block">
         <span>通勤</span>

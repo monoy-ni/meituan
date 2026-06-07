@@ -214,6 +214,7 @@ class PlanOption:
     data_confidence: str = "seed"
     search_keywords: list[dict[str, Any]] = field(default_factory=list)
     route_plan: dict[str, Any] = field(default_factory=dict)
+    experience_card: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

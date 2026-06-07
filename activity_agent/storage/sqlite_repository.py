@@ -556,6 +556,7 @@ def _plan_option_from_dict(data: dict[str, Any]) -> PlanOption:
         data_confidence=data.get("data_confidence", "seed"),
         search_keywords=list(data.get("search_keywords", [])),
         route_plan=dict(data.get("route_plan", {})),
+        experience_card=dict(data.get("experience_card", {})),
     )
 
 

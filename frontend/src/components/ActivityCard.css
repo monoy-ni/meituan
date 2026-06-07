@@ -157,6 +157,89 @@
   line-height: 1.3;
 }
 
+.experience-card-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  background: #fbf7ed;
+  border-left: 3px solid #c48a2c;
+  border-radius: 6px;
+}
+
+.experience-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.experience-heading span,
+.experience-style span {
+  color: #8a5b12;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.experience-heading strong {
+  color: #17212b;
+  font-size: 15px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.experience-line,
+.experience-style p,
+.experience-flow p {
+  margin: 0;
+  color: #3f4f5a;
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.experience-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.experience-tags span {
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fffdfa;
+  color: #6d4a16;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.experience-style {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.experience-flow {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.experience-flow li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.experience-flow li span {
+  color: #17212b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .info-block {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
@@ -247,6 +330,11 @@
 
   .timeline-list b {
     text-align: left;
+  }
+
+  .experience-style,
+  .experience-flow li {
+    grid-template-columns: 1fr;
   }
 
   .card-actions {

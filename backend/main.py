@@ -172,6 +172,7 @@ def _option_payload(option: PlanOption) -> dict[str, Any]:
         "data_confidence": option.data_confidence,
         "search_keywords": option.search_keywords,
         "route_plan": option.route_plan,
+        "experience_card": option.experience_card,
     }
 
 

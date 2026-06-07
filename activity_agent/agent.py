@@ -27,6 +27,7 @@ from activity_agent.llm import LLMClient, LLMItineraryCurator, LLMKeywordExpande
 from activity_agent.modules.booking_orchestrator import BookingOrchestrator
 from activity_agent.modules.context_collector import ContextCollector
 from activity_agent.modules.dialogue_manager import DialogueManager, DialogueState
+from activity_agent.modules.experience_card_designer import ExperienceCardDesigner
 from activity_agent.modules.feedback_resolver import FeedbackResolver
 from activity_agent.modules.intent_router import IntentRouter
 from activity_agent.modules.itinerary_composer import ItineraryComposer
@@ -76,6 +77,7 @@ class ActivityPlanningAgent:
         )
         self.keyword_expander = LLMKeywordExpander(self.llm_client)
         self.itinerary_curator = LLMItineraryCurator(self.llm_client)
+        self.experience_card_designer = ExperienceCardDesigner(self.llm_client)
 
         self.intent_router = IntentRouter()
         self.context_collector = ContextCollector()
@@ -369,11 +371,17 @@ class ActivityPlanningAgent:
         request: UserRequest,
         search_keywords: list[dict[str, str]],
     ) -> PlanOption:
-        return replace(
+        option = replace(
             option,
             search_keywords=search_keywords,
             route_plan=self._route_plan_for_option(option, request),
         )
+        return self._ensure_experience_card(option, request)
+
+    def _ensure_experience_card(self, option: PlanOption, request: UserRequest) -> PlanOption:
+        if option.experience_card:
+            return option
+        return replace(option, experience_card=self.experience_card_designer.design(option, request))
 
     def _route_plan_for_option(self, option: PlanOption, request: UserRequest) -> dict[str, object]:
         points = [
@@ -598,7 +606,8 @@ class ActivityPlanningAgent:
         feedback: list[InviteFeedback],
         preferred_theme_name: str | None = None,
     ) -> tuple[UserRequest, PlanOption, list[str]]:
-        return self.feedback_resolver.resolve(request, feedback, preferred_theme_name)
+        revised_request, revised_option, notes = self.feedback_resolver.resolve(request, feedback, preferred_theme_name)
+        return revised_request, self._ensure_experience_card(revised_option, revised_request), notes
 
     def create_booking_draft(
         self,
@@ -609,7 +618,8 @@ class ActivityPlanningAgent:
         if isinstance(session_or_option, PlanOption):
             if not isinstance(option_id_or_request, UserRequest):
                 raise ValueError("The legacy create_booking_draft(option, request) form requires a UserRequest.")
-            return self.booking_orchestrator.create_draft(session_or_option, option_id_or_request, pay_mode)
+            option = self._ensure_experience_card(session_or_option, option_id_or_request)
+            return self.booking_orchestrator.create_draft(option, option_id_or_request, pay_mode)
 
         session_id = session_or_option
         latest = self._latest_planning_or_raise(session_id)
@@ -621,6 +631,7 @@ class ActivityPlanningAgent:
             selected = self.repository.get_selected_option(session_id)
             option = selected[0] if selected else latest["options"][0]
 
+        option = self._ensure_experience_card(option, request)
         draft = self.booking_orchestrator.create_draft(option, request, pay_mode)
         self.repository.save_booking_draft(session_id, draft)
         return draft
