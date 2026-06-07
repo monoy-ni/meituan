@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import math
+import re
 from dataclasses import replace
 from typing import Any
 
 from activity_agent.config import AgentSettings, LLMSettings, StorageSettings, ToolSettings
+from activity_agent.data.theme_keyword_seeds import keyword_seeds_for_theme
 from activity_agent.domain.models import (
     AgentResponse,
     AfterActionReview,
@@ -20,7 +23,7 @@ from activity_agent.domain.models import (
     Session,
     UserRequest,
 )
-from activity_agent.llm import LLMClient, MockLLMClient, OpenAICompatibleLLMClient
+from activity_agent.llm import LLMClient, LLMItineraryCurator, LLMKeywordExpander, MockLLMClient, OpenAICompatibleLLMClient
 from activity_agent.modules.booking_orchestrator import BookingOrchestrator
 from activity_agent.modules.context_collector import ContextCollector
 from activity_agent.modules.dialogue_manager import DialogueManager, DialogueState
@@ -71,6 +74,8 @@ class ActivityPlanningAgent:
         self.llm_client = llm_client or (
             OpenAICompatibleLLMClient(self.settings.llm) if self.settings.llm.api_key else MockLLMClient()
         )
+        self.keyword_expander = LLMKeywordExpander(self.llm_client)
+        self.itinerary_curator = LLMItineraryCurator(self.llm_client)
 
         self.intent_router = IntentRouter()
         self.context_collector = ContextCollector()
@@ -153,6 +158,9 @@ class ActivityPlanningAgent:
         experience_tags: list[str] | None = None,
         effort_preference: str | None = None,
         weather: str | None = None,
+        search_radius_km: float | None = None,
+        route_limit_km: float | None = None,
+        route_limit_minutes: int | None = None,
     ) -> AgentResponse:
         self._ensure_session(session_id)
         theme = self._theme_prompt(theme_id)
@@ -176,6 +184,12 @@ class ActivityPlanningAgent:
             text += "，不想太累，少走路"
         if weather in {"rain", "rainy", "下雨", "雨天"}:
             text += "，下雨，优先室内"
+        if search_radius_km:
+            text += f"，周边{search_radius_km}公里"
+        if route_limit_km:
+            text += f"，路线控制在{route_limit_km}公里"
+        if route_limit_minutes:
+            text += f"，{route_limit_minutes}分钟内"
         return self.chat(session_id, text)
 
     def refresh_itinerary(self, session_id: str, itinerary_id: str) -> dict[str, object]:
@@ -271,6 +285,205 @@ class ActivityPlanningAgent:
             "message": "当前为 seed/local_db 同步结果；真实 provider 需要配置授权 Key 后接入。",
         }
 
+    def _prepare_theme_poi_candidates(self, theme, request: UserRequest) -> tuple[UserRequest, list[dict[str, str]]]:
+        request = self._resolve_origin_with_amap(request)
+        seeds = keyword_seeds_for_theme(theme, request)
+        expanded = self.keyword_expander.expand(theme.name, seeds, request)
+        search_keywords = [item.as_dict() for item in expanded]
+        keyword_values = [item.keyword for item in expanded]
+
+        sync_theme_pois = getattr(self.local_data_provider, "sync_theme_pois", None)
+        if callable(sync_theme_pois):
+            sync_theme_pois(
+                "hangzhou",
+                keyword_values,
+                request.origin_longitude,
+                request.origin_latitude,
+                request.search_radius_km,
+            )
+            self._refresh_runtime_catalog("hangzhou")
+
+        self._enrich_theme_candidates_with_mock_profiles("hangzhou")
+        preferred_ids = self._preferred_supply_ids(theme, request)
+        if preferred_ids:
+            constraints = dict(request.hard_constraints)
+            constraints["preferred_supply_ids"] = preferred_ids
+            request = replace(request, hard_constraints=constraints)
+        return request, search_keywords
+
+    def _resolve_origin_with_amap(self, request: UserRequest) -> UserRequest:
+        if request.origin_longitude is not None and request.origin_latitude is not None:
+            return request
+        client = getattr(self.local_data_provider, "amap_client", None)
+        if client is None:
+            return request
+        try:
+            poi = client.resolve_location(self.settings.tools.amap_city, request.origin_name or request.location_anchor)
+        except Exception:
+            return request
+        if not poi:
+            return request
+        location = str(poi.get("location") or "")
+        if "," not in location:
+            return request
+        try:
+            longitude_text, latitude_text = location.split(",", 1)
+            longitude = float(longitude_text)
+            latitude = float(latitude_text)
+        except ValueError:
+            return request
+        return replace(
+            request,
+            origin_name=str(poi.get("name") or request.origin_name),
+            origin_address=str(poi.get("address") or request.origin_address),
+            origin_longitude=longitude,
+            origin_latitude=latitude,
+        )
+
+    def _enrich_theme_candidates_with_mock_profiles(self, city: str) -> None:
+        supplies = [
+            supply
+            for supply in self.local_data_provider.list_supplies(city)
+            if supply.matched_keywords or supply.source in {"amap_poi", "amap_theme_poi", "hangzhou_open_data"}
+        ][:30]
+        enriched = []
+        for supply in supplies:
+            profile_result = self.commerce_provider.merchant_profile(supply.id, supply.name)
+            profile = dict(profile_result.data)
+            enriched.append(replace(supply, merchant_profile=profile))
+        if enriched:
+            self.repository.upsert_supplies(enriched, "mock_meituan_profile")
+            self._refresh_runtime_catalog(city)
+
+    def _preferred_supply_ids(self, theme, request: UserRequest) -> list[str]:
+        candidates = [
+            supply
+            for supply in self.local_data_provider.list_supplies("hangzhou")
+            if supply.available and (supply.matched_keywords or supply.merchant_profile)
+        ][:30]
+        return self.itinerary_curator.preferred_supply_ids(theme, request, candidates)
+
+    def _attach_live_context(
+        self,
+        option: PlanOption,
+        request: UserRequest,
+        search_keywords: list[dict[str, str]],
+    ) -> PlanOption:
+        return replace(
+            option,
+            search_keywords=search_keywords,
+            route_plan=self._route_plan_for_option(option, request),
+        )
+
+    def _route_plan_for_option(self, option: PlanOption, request: UserRequest) -> dict[str, object]:
+        points = [
+            {
+                "name": request.origin_name,
+                "address": request.origin_address,
+                "longitude": request.origin_longitude,
+                "latitude": request.origin_latitude,
+            },
+            *[
+                {
+                    "name": item.merchant_name,
+                    "address": item.address,
+                    "longitude": item.longitude,
+                    "latitude": item.latitude,
+                }
+                for item in option.timeline_items
+            ],
+        ]
+        legs = []
+        total_distance_km = 0.0
+        total_duration_minutes = 0
+        provider = "seed_route"
+        status = "seed"
+
+        for origin, destination in zip(points, points[1:]):
+            leg = self._route_leg(origin, destination)
+            legs.append(leg)
+            total_distance_km += float(leg.get("distance_km") or 0)
+            total_duration_minutes += int(leg.get("duration_minutes") or 0)
+            if leg.get("provider") == "amap_route":
+                provider = "amap_route"
+                status = "live"
+
+        total_distance_km = round(total_distance_km, 2)
+        return {
+            "origin": points[0],
+            "legs": legs,
+            "total_distance_km": total_distance_km,
+            "total_duration_minutes": total_duration_minutes,
+            "route_limit_km": request.route_limit_km,
+            "route_limit_minutes": request.route_limit_minutes,
+            "within_limits": total_distance_km <= request.route_limit_km
+            and total_duration_minutes <= request.route_limit_minutes,
+            "provider": provider,
+            "status": status,
+        }
+
+    def _route_leg(self, origin: dict[str, object], destination: dict[str, object]) -> dict[str, object]:
+        origin_lng = origin.get("longitude")
+        origin_lat = origin.get("latitude")
+        dest_lng = destination.get("longitude")
+        dest_lat = destination.get("latitude")
+        if None in {origin_lng, origin_lat, dest_lng, dest_lat}:
+            return {
+                "from": origin.get("name"),
+                "to": destination.get("name"),
+                "distance_km": 0,
+                "duration_minutes": 0,
+                "mode": "unknown",
+                "provider": "seed_route",
+                "message": "Missing coordinates; route leg needs AMAP refresh.",
+            }
+
+        origin_coord = f"{origin_lng},{origin_lat}"
+        destination_coord = f"{dest_lng},{dest_lat}"
+        client = getattr(self.map_provider, "client", None)
+        if client is not None:
+            try:
+                payload = client.walking_route(origin_coord, destination_coord)
+                path = ((payload.get("route") or {}).get("paths") or [{}])[0]
+                distance_km = round(float(path.get("distance") or 0) / 1000, 2)
+                duration_minutes = max(1, round(float(path.get("duration") or 0) / 60))
+                return {
+                    "from": origin.get("name"),
+                    "to": destination.get("name"),
+                    "distance_km": distance_km,
+                    "duration_minutes": duration_minutes,
+                    "mode": "walking",
+                    "provider": "amap_route",
+                    "message": f"AMAP walking leg: {distance_km}km / {duration_minutes}min.",
+                }
+            except Exception:
+                pass
+
+        distance_km = round(
+            self._haversine_km(float(origin_lat), float(origin_lng), float(dest_lat), float(dest_lng)),
+            2,
+        )
+        duration_minutes = max(1, round(distance_km / 4.5 * 60))
+        return {
+            "from": origin.get("name"),
+            "to": destination.get("name"),
+            "distance_km": distance_km,
+            "duration_minutes": duration_minutes,
+            "mode": "walking_estimate",
+            "provider": "seed_route",
+            "message": f"Estimated walking leg: {distance_km}km / {duration_minutes}min.",
+        }
+
+    def _haversine_km(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+        radius = 6371.0
+        dlat = math.radians(lat2 - lat1)
+        dlng = math.radians(lng2 - lng1)
+        a = (
+            math.sin(dlat / 2) ** 2
+            + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+        )
+        return 2 * radius * math.asin(math.sqrt(a))
+
     def chat(self, session_id: str, text: str) -> AgentResponse:
         """简化的聊天方法 - 使用新的对话管理器逻辑"""
         self._ensure_session(session_id)
@@ -365,7 +578,9 @@ class ActivityPlanningAgent:
         request = self._merge_llm_data(request, llm_data or {})
         request = self._apply_adjustments(text, request)
         themes = self.theme_planner.plan(request)
+        request, search_keywords = self._prepare_theme_poi_candidates(themes[0], request)
         options = self.itinerary_composer.compose(themes, request)
+        options = [self._attach_live_context(option, request, search_keywords) for option in options]
         return PlanningResult(
             route=route,
             request=request,
@@ -506,6 +721,14 @@ class ActivityPlanningAgent:
             planning_effort=str(data.get("planning_effort") or request.planning_effort),
             travel_radius_km=float(data.get("travel_radius_km") or request.travel_radius_km),
             weather_sensitive=bool(data.get("weather_sensitive") or request.weather_sensitive),
+            origin_name=str(data.get("origin_name") or request.origin_name),
+            origin_address=str(data.get("origin_address") or request.origin_address),
+            origin_amap_url=str(data.get("origin_amap_url") or request.origin_amap_url),
+            origin_longitude=self._safe_float(data.get("origin_longitude"), request.origin_longitude),
+            origin_latitude=self._safe_float(data.get("origin_latitude"), request.origin_latitude),
+            search_radius_km=self._safe_float(data.get("search_radius_km"), request.search_radius_km) or 5.0,
+            route_limit_km=self._safe_float(data.get("route_limit_km"), request.route_limit_km) or 6.0,
+            route_limit_minutes=self._safe_int(data.get("route_limit_minutes"), request.route_limit_minutes),
         )
 
     def _safe_int(self, value: object, fallback: int) -> int:
@@ -514,11 +737,20 @@ class ActivityPlanningAgent:
         except (TypeError, ValueError):
             return fallback
 
+    def _safe_float(self, value: object, fallback: float | None) -> float | None:
+        try:
+            return float(value) if value is not None else fallback
+        except (TypeError, ValueError):
+            return fallback
+
     def _apply_adjustments(self, text: str, request: UserRequest) -> UserRequest:
         normalized = str(text or "")
         constraints = dict(request.hard_constraints)
         budget = request.budget_per_person
         mood_tags = list(request.mood_tags)
+        search_radius_km = request.search_radius_km
+        route_limit_km = request.route_limit_km
+        route_limit_minutes = request.route_limit_minutes
 
         if "便宜点" in normalized or "预算太高" in normalized:
             constraints["cheaper"] = True
@@ -543,12 +775,26 @@ class ActivityPlanningAgent:
         if "加拍照点" in normalized:
             experience_tags.append("打卡")
 
+        radius_match = re.search(r"(?:周边|附近|半径)\s*(\d+(?:\.\d+)?)\s*公里", normalized)
+        route_km_match = re.search(r"(?:路线|全程|总路程|路程)\D{0,8}(\d+(?:\.\d+)?)\s*公里", normalized)
+        minutes_match = re.search(r"(\d{1,3})\s*分钟", normalized)
+        if radius_match:
+            search_radius_km = float(radius_match.group(1))
+        if route_km_match:
+            route_limit_km = float(route_km_match.group(1))
+        if minutes_match:
+            route_limit_minutes = int(minutes_match.group(1))
+
         return replace(
             request,
             budget_per_person=budget,
             mood_tags=list(dict.fromkeys(mood_tags)),
             experience_tags=list(dict.fromkeys(experience_tags)),
             hard_constraints=constraints,
+            search_radius_km=search_radius_km,
+            travel_radius_km=search_radius_km,
+            route_limit_km=route_limit_km,
+            route_limit_minutes=route_limit_minutes,
         )
 
     def chat_with_guidance(self, session_id: str, text: str, scene_hint: Scene | str | None = None) -> AgentResponse:
@@ -658,6 +904,14 @@ class ActivityPlanningAgent:
             collected.append(f"人均{ctx.collected_info['budget']}")
         if ctx.collected_info.get("time"):
             collected.append(str(ctx.collected_info["time"]))
+        if ctx.collected_info.get("location"):
+            collected.append(f"从{ctx.collected_info['location']}附近出发")
+        if ctx.collected_info.get("search_radius_km"):
+            collected.append(f"周边{ctx.collected_info['search_radius_km']}公里")
+        if ctx.collected_info.get("route_limit_km"):
+            collected.append(f"路线控制在{ctx.collected_info['route_limit_km']}公里")
+        if ctx.collected_info.get("route_limit_minutes"):
+            collected.append(f"{ctx.collected_info['route_limit_minutes']}分钟内")
         return "，".join([scene_text, "杭州", *collected, *user_messages])
 
     def _coerce_scene(self, scene_hint: Scene | str | None) -> Scene | None:

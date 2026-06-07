@@ -98,6 +98,12 @@ class ItineraryComposer:
             checkin_hint=supply.checkin_value,
             transport_hint=supply.transport_hint,
             data_confidence=supply.data_confidence,
+            address=supply.address,
+            latitude=supply.latitude,
+            longitude=supply.longitude,
+            matched_keyword=supply.matched_keywords[0] if supply.matched_keywords else "",
+            matched_keywords=supply.matched_keywords,
+            merchant_profile=supply.merchant_profile,
         )
 
     def _with_couple_addons(
@@ -140,7 +146,7 @@ class ItineraryComposer:
             notes.append("酒店/夜宿必须双方明确接受，并在支付前再次确认隐私、安全和退款规则。")
         if request.weather_sensitive:
             notes.append("天气为 seed 估算，出发前建议刷新确认；已优先安排室内或低天气风险供给。")
-        if any(item.data_confidence != "realtime" for item in items):
+        if any(item.data_confidence not in {"realtime", "live", "official"} for item in items):
             notes.append("路线、库存和价格当前为 seed/缓存估算，确认前需刷新。")
         return notes
 
@@ -191,8 +197,8 @@ class ItineraryComposer:
 
     def _data_confidence(self, items: list[TimelineItem]) -> str:
         values = {item.data_confidence for item in items}
-        if "realtime" in values and len(values) == 1:
-            return "realtime"
+        if values <= {"realtime", "live", "official"}:
+            return "live" if "live" in values else "realtime"
         if "cache" in values:
             return "cache"
         return "seed"

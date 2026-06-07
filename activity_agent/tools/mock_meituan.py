@@ -66,6 +66,31 @@ class MockMeituanToolClient:
             event=self._event("meituan.check_availability", {"merchant_id": merchant_id}, data, started),
         )
 
+    def merchant_profile(self, merchant_id: str, merchant_name: str | None = None) -> ToolResult:
+        started = time.perf_counter()
+        supply = self._get_supply(merchant_id)
+        name = merchant_name or (supply.name if supply else merchant_id)
+        seed = sum(ord(char) for char in str(merchant_id))
+        rating = round(4.1 + (seed % 8) / 10, 1)
+        review_count = 80 + seed % 900
+        tags = list((supply.tags if supply else [])[:4])
+        intro = f"{name} mock 商户介绍：适合主题局候选，真实营业、评价和库存需接入授权美团接口后确认。"
+        review_summary = f"mock 用户评价摘要：氛围 {rating}/5，适合聊天/聚会；高峰期建议提前确认座位。"
+        data = {
+            "merchant_id": merchant_id,
+            "merchant_name": name,
+            "rating": rating,
+            "review_count": review_count,
+            "intro": intro,
+            "review_summary": review_summary,
+            "tags": tags,
+            "data_confidence": "mock",
+        }
+        return ToolResult(
+            data=data,
+            event=self._event("meituan.merchant_profile", {"merchant_id": merchant_id}, data, started),
+        )
+
     def create_booking_hold(self, items: list[dict[str, object]]) -> ToolResult:
         started = time.perf_counter()
         hold_id = f"hold_{uuid4().hex[:10]}"
@@ -144,4 +169,3 @@ class MockMeituanToolClient:
             duration_ms=int((time.perf_counter() - started) * 1000),
             error=error,
         )
-

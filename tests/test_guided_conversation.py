@@ -15,14 +15,21 @@ class GuidedConversationTest(unittest.TestCase):
         first = self.agent.chat_with_guidance(session.id, "朋友局", scene_hint=Scene.FRIENDS)
         second = self.agent.chat_with_guidance(session.id, "想轻松聊聊天，最近有点累")
         third = self.agent.chat_with_guidance(session.id, "人均200")
-        ready = self.agent.chat_with_guidance(session.id, "今晚")
+        distance_prompt = self.agent.chat_with_guidance(session.id, "今晚")
+        ready = self.agent.chat_with_guidance(session.id, "默认")
 
         self.assertEqual(first.options, [])
         self.assertEqual(second.options, [])
         self.assertEqual(third.options, [])
+        self.assertEqual(distance_prompt.options, [])
+        self.assertIn("集合点默认奥映世纪轩", distance_prompt.message)
         self.assertEqual(len(ready.options), 3)
         self.assertEqual(ready.request.scene, Scene.FRIENDS)
         self.assertEqual(ready.request.budget_per_person, 200)
+        self.assertEqual(ready.request.origin_name, "奥映世纪轩")
+        self.assertEqual(ready.request.search_radius_km, 5.0)
+        self.assertEqual(ready.request.route_limit_km, 6.0)
+        self.assertEqual(ready.request.route_limit_minutes, 45)
         self.assertTrue({"聊天", "回血"} & set(ready.request.mood_tags))
         self.assertEqual(self.agent.get_conversation_state(session.id), "awaiting_selection")
 
@@ -34,7 +41,8 @@ class GuidedConversationTest(unittest.TestCase):
         messages.append(self.agent.chat_with_guidance(session.id, "周末想约她出来，有点怕尴尬，想轻松自然一点").message)
         budget_response = self.agent.chat_with_guidance(session.id, "人均300")
         messages.append(budget_response.message)
-        ready = budget_response if budget_response.options else self.agent.chat_with_guidance(session.id, "周六下午")
+        time_response = budget_response if budget_response.options else self.agent.chat_with_guidance(session.id, "周六下午")
+        ready = time_response if time_response.options else self.agent.chat_with_guidance(session.id, "默认")
 
         self.assertEqual(len(ready.options), 3)
         self.assertEqual(ready.request.scene, Scene.COUPLE)
@@ -47,7 +55,8 @@ class GuidedConversationTest(unittest.TestCase):
         self.agent.chat_with_guidance(session.id, "朋友局", scene_hint=Scene.FRIENDS)
         self.agent.chat_with_guidance(session.id, "想拍照出片，杭州本地探索")
         self.agent.chat_with_guidance(session.id, "人均260")
-        ready = self.agent.chat_with_guidance(session.id, "周末")
+        self.agent.chat_with_guidance(session.id, "周末")
+        ready = self.agent.chat_with_guidance(session.id, "默认")
         initial_budget = ready.request.budget_per_person
 
         adjusted = self.agent.chat_with_guidance(session.id, "便宜点，少走路")
@@ -62,7 +71,8 @@ class GuidedConversationTest(unittest.TestCase):
         self.agent.chat_with_guidance(session.id, "朋友局", scene_hint=Scene.FRIENDS)
         self.agent.chat_with_guidance(session.id, "想放松回血，杭州本地探索")
         self.agent.chat_with_guidance(session.id, "人均220")
-        ready = self.agent.chat_with_guidance(session.id, "今晚")
+        self.agent.chat_with_guidance(session.id, "今晚")
+        ready = self.agent.chat_with_guidance(session.id, "默认")
 
         draft = self.agent.create_booking_draft(session.id, ready.options[0].id)
         cancelled = self.agent.confirm_booking(session.id, draft.id, confirm=False)
@@ -82,6 +92,23 @@ class GuidedConversationTest(unittest.TestCase):
         self.assertEqual(payload["conversation"]["state"], "collecting_friends_context")
         self.assertFalse(payload["conversation"]["should_show_options"])
         self.assertEqual(payload["conversation"]["next_step"], "ask_mood")
+
+    def test_guided_context_accepts_custom_location_and_distance(self) -> None:
+        session = self.agent.start_session()
+
+        self.agent.chat_with_guidance(session.id, "朋友局", scene_hint=Scene.FRIENDS)
+        self.agent.chat_with_guidance(session.id, "想回血")
+        self.agent.chat_with_guidance(session.id, "人均180")
+        distance_prompt = self.agent.chat_with_guidance(session.id, "今晚")
+        ready = self.agent.chat_with_guidance(session.id, "从西湖文化广场出发，周边3公里，路线控制在4公里，40分钟内")
+
+        self.assertEqual(distance_prompt.options, [])
+        self.assertEqual(len(ready.options), 3)
+        self.assertEqual(ready.request.origin_name, "西湖文化广场")
+        self.assertIsNone(ready.request.origin_longitude)
+        self.assertEqual(ready.request.search_radius_km, 3.0)
+        self.assertEqual(ready.request.route_limit_km, 4.0)
+        self.assertEqual(ready.request.route_limit_minutes, 40)
 
 
 if __name__ == "__main__":

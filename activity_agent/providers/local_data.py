@@ -36,6 +36,9 @@ class WeatherProvider(Protocol):
 
 
 class CommerceProvider(Protocol):
+    def merchant_profile(self, merchant_id: str, merchant_name: str | None = None) -> ToolResult:
+        ...
+
     def check_availability(self, merchant_id: str, time_window: str, party_size: int) -> ToolResult:
         ...
 
@@ -149,6 +152,9 @@ class MockCommerceProvider:
 
     def check_availability(self, merchant_id: str, time_window: str, party_size: int) -> ToolResult:
         return self.tool_client.check_availability(merchant_id, time_window, party_size)
+
+    def merchant_profile(self, merchant_id: str, merchant_name: str | None = None) -> ToolResult:
+        return self.tool_client.merchant_profile(merchant_id, merchant_name)
 
     def create_booking_hold(self, items: list[dict[str, object]]) -> ToolResult:
         return self.tool_client.create_booking_hold(items)

@@ -59,4 +59,21 @@ class SupplyMatcher:
         price_score = 5 if supply.price <= per_slot_budget else -min(8, int((supply.price - per_slot_budget) / 30))
         distance_score = max(0, 4 - int(supply.distance_km))
         booking_score = 2 if any(mode in supply.booking_modes for mode in ["reservation", "ticket", "group_buy", "hotel"]) else 0
-        return desired_score + mood_score + area_score + weather_score + checkin_score + price_score + distance_score + booking_score
+        profile = supply.merchant_profile or {}
+        rating_score = int(max(0, float(profile.get("rating", 0)) - 4.0) * 4) if profile else 0
+        keyword_score = 3 if supply.matched_keywords else 0
+        preferred_ids = set(request.hard_constraints.get("preferred_supply_ids") or [])
+        preferred_score = 20 if supply.id in preferred_ids else 0
+        return (
+            desired_score
+            + mood_score
+            + area_score
+            + weather_score
+            + checkin_score
+            + price_score
+            + distance_score
+            + booking_score
+            + rating_score
+            + keyword_score
+            + preferred_score
+        )

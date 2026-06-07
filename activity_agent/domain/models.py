@@ -96,6 +96,14 @@ class UserRequest:
     planning_effort: str = "guided"
     travel_radius_km: float = 3.0
     weather_sensitive: bool = False
+    origin_name: str = "奥映世纪轩"
+    origin_address: str = "民祥路与平澜路交汇处(地铁6号线丰北站C出口)"
+    origin_amap_url: str = "https://surl.amap.com/4sRsg3c1oa7b"
+    origin_longitude: float | None = 120.2425
+    origin_latitude: float | None = 30.2426
+    search_radius_km: float = 5.0
+    route_limit_km: float = 6.0
+    route_limit_minutes: int = 45
 
 
 @dataclass(frozen=True)
@@ -125,6 +133,8 @@ class MerchantSupply:
     local_flavor_tags: list[str] = field(default_factory=list)
     transport_hint: str = ""
     data_confidence: str = "seed"
+    matched_keywords: list[str] = field(default_factory=list)
+    merchant_profile: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -172,6 +182,12 @@ class TimelineItem:
     checkin_hint: str = ""
     transport_hint: str = ""
     data_confidence: str = "seed"
+    address: str = ""
+    latitude: float | None = None
+    longitude: float | None = None
+    matched_keyword: str = ""
+    matched_keywords: list[str] = field(default_factory=list)
+    merchant_profile: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -196,6 +212,8 @@ class PlanOption:
     effort_level: str = "中"
     transport_summary: str = ""
     data_confidence: str = "seed"
+    search_keywords: list[dict[str, Any]] = field(default_factory=list)
+    route_plan: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
