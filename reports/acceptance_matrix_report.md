@@ -1,6 +1,6 @@
 # 8 项业务验收测试报告
 
-- 生成时间: `2026-06-07T21:12:02`
+- 生成时间: `2026-06-07T21:31:21`
 - 测试项总数: `8`
 - 通过测试项: `8`
 - 失败测试项: `0`
@@ -33,7 +33,7 @@
 - 结果: `PASS`
 - 需求: AI 与用户进行交流确认主题，信息足够后再生成方案。
 - 描述: 覆盖模糊开场、场景确认、玩法氛围、预算、时间、默认集合点/距离确认和最终出方案。
-- 耗时: `10ms`
+- 耗时: `11ms`
 
 ### 关联文件
 
@@ -111,7 +111,7 @@
 - 结果: `PASS`
 - 需求: 询问用户对距离和整体行程路径长短的要求，并写入最终请求。
 - 描述: 覆盖默认距离提示、用户自定义集合点、周边搜索范围、路线公里数和路线分钟数。
-- 耗时: `6ms`
+- 耗时: `7ms`
 
 ### 关联文件
 
@@ -152,7 +152,7 @@
 - 结果: `PASS`
 - 需求: 通过高德 POI 在用户给出范围内搜索美食和游乐地点。
 - 描述: 覆盖 around location、半径换算、餐饮/游乐关键词、POI 入库和 matched_keywords。
-- 耗时: `3ms`
+- 耗时: `4ms`
 
 ### 关联文件
 
@@ -168,7 +168,7 @@
 | around_call_count | PASS | 2 | 2 | - |
 | around_location | PASS | 120.2425,30.2426 | ["120.2425,30.2426", "120.2425,30.2426"] | - |
 | radius_m | PASS | 3000 | [3000, 3000] | - |
-| food_and_fun_keywords | PASS | "{'桌游', '烧烤'}" | "{'桌游', '烧烤'}" | - |
+| food_and_fun_keywords | PASS | "{'烧烤', '桌游'}" | "{'烧烤', '桌游'}" | - |
 | poi_supplies | PASS | "{'范围测试烧烤店', '范围测试桌游馆'}" | "{'范围测试烧烤店', '范围测试桌游馆'}" | - |
 
 ### 证据
@@ -210,7 +210,7 @@
 | llm_filters_hallucinated_ids | PASS | made_up_merchant 不进入结果 | ["food_bbq", "activity_ktv", "relax_tea"] | - |
 | preferred_ids | PASS | ["food_bbq", "activity_ktv", "relax_tea"] | ["food_bbq", "activity_ktv", "relax_tea"] | - |
 | theme_combination_types | PASS | "{'activity', 'dining', 'relax'}" | "{'activity', 'dining', 'relax'}" | - |
-| selected_ids_match_llm | PASS | "{'activity_ktv', 'food_bbq', 'relax_tea'}" | "{'activity_ktv', 'food_bbq', 'relax_tea'}" | - |
+| selected_ids_match_llm | PASS | "{'food_bbq', 'activity_ktv', 'relax_tea'}" | "{'food_bbq', 'activity_ktv', 'relax_tea'}" | - |
 
 ### 证据
 
@@ -274,7 +274,7 @@
 - 结果: `PASS`
 - 需求: 情侣使用 couple-date-designer，朋友使用 themed-outing-designer，生成完整的局卡片。
 - 描述: 覆盖 designer 字段、卡片必要字段、flow 与 timeline 对齐、预约安全说明。
-- 耗时: `10ms`
+- 耗时: `12ms`
 
 ### 关联文件
 
@@ -308,7 +308,7 @@
 - 结果: `PASS`
 - 需求: mock 调用美团 API 完成预约和下单验证，同时保持确认前安全边界。
 - 描述: 覆盖可用性检查、booking hold、AA 草稿、取消不下单、确认后生成 mock 订单。
-- 耗时: `7ms`
+- 耗时: `8ms`
 
 ### 关联文件
 
@@ -326,7 +326,7 @@
 | safety_notice | PASS | 不会未经授权支付 | 半自动确认模式：Agent 可以生成待确认订单和 AA 方案，但不会未经授权支付或下不可逆订单。 | - |
 | aa_draft_created | PASS | true | true | - |
 | cancel_no_order | PASS | cancelled | cancelled | - |
-| confirm_creates_orders | PASS | mock order ids | ["order_b9bf8116", "order_b63df713", "order_d966b6cb"] | - |
+| confirm_creates_orders | PASS | mock order ids | ["order_d2393610", "order_8ddb25e6", "order_314e659f"] | - |
 | availability_called_per_item | PASS | >=3 | 3 | - |
 | hold_called | PASS | create_booking_hold | ["check_availability", "check_availability", "check_availability", "create_booking_hold", "create_aa_draft", "confirm_booking"] | - |
 | aa_called | PASS | create_aa_draft | ["check_availability", "check_availability", "check_availability", "create_booking_hold", "create_aa_draft", "confirm_booking"] | - |
@@ -336,9 +336,9 @@
 
 | 名称 | 值 | 说明 |
 | --- | --- | --- |
-| draft | {"id": "draft_377e5b1962e0", "status": "pending_user_confirmation", "items": 3, "aa_draft": {"aa_id": "aa_af5bd6797a", "total": 1128, "party_size": 4, "per_person": 282, "mode": "aa_prepay", "status": "draft"}} | - |
+| draft | {"id": "draft_1fdc3d3792da", "status": "pending_user_confirmation", "items": 3, "aa_draft": {"aa_id": "aa_1c62644dcc", "total": 1128, "party_size": 4, "per_person": 282, "mode": "aa_prepay", "status": "draft"}} | - |
 | cancelled | {"status": "cancelled", "order_ids": []} | - |
-| confirmed | {"status": "confirmed", "order_ids": ["order_b9bf8116", "order_b63df713", "order_d966b6cb"]} | - |
+| confirmed | {"status": "confirmed", "order_ids": ["order_d2393610", "order_8ddb25e6", "order_314e659f"]} | - |
 
 ### 工具/外部接口调用记录
 

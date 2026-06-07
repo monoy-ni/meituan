@@ -2,62 +2,81 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 20px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: #ffffff;
-  border: 1px solid #d7e0de;
-  border-radius: 8px;
+  box-shadow: var(--shadow-tight);
 }
 
 .booking-confirmation.success {
-  border-color: #0f766e;
+  border-color: rgba(255, 209, 0, 0.42);
+  background: linear-gradient(120deg, #ffffff, var(--lake-soft));
 }
 
 .booking-confirmation.cancelled {
-  border-color: #efb7ae;
+  border-color: rgba(189, 75, 69, 0.28);
+  background: linear-gradient(120deg, #ffffff, var(--danger-soft));
 }
 
 .confirmation-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 11px;
+}
+
+.confirmation-icon {
+  display: grid;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--lake);
+  font-weight: 950;
+}
+
+.booking-confirmation.cancelled .confirmation-icon {
+  background: var(--danger);
 }
 
 .confirmation-header p {
-  order: 2;
-  margin: 0;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: #f2f5f5;
-  color: #52636d;
+  margin: 0 0 4px;
+  color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .confirmation-header h3 {
   margin: 0;
-  color: #17212b;
-  font-size: 22px;
+  color: var(--ink);
+  font-size: 23px;
+  line-height: 1.2;
 }
 
 .confirmation-message {
   margin: 0;
-  color: #3f4f5a;
+  color: var(--ink-soft);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.62;
 }
 
 .order-ids {
   display: grid;
   gap: 10px;
   padding: 12px;
-  background: #f7f9f9;
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .order-ids h4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
-  color: #17212b;
+  color: var(--ink);
   font-size: 13px;
 }
 
@@ -68,18 +87,22 @@
 }
 
 .order-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 31px;
   padding: 6px 9px;
-  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   background: #ffffff;
-  border: 1px solid #d7e0de;
-  color: #0f766e;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--lake);
+  font-family: "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 12px;
+  font-weight: 800;
 }
 
 @media (max-width: 640px) {
   .confirmation-header {
     align-items: flex-start;
-    flex-direction: column;
   }
 }

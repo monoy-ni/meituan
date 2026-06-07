@@ -12,19 +12,25 @@ const BookingDraft = ({ draft, onConfirm, onCancel, isLoading }) => {
   return (
     <section className="booking-draft">
       <div className="draft-header">
-        <div>
-          <p className="draft-kicker">预约草稿</p>
-          <h3>确认前不会支付或下不可逆订单</h3>
+        <div className="draft-title-lockup">
+          <span className="draft-icon" aria-hidden="true">安</span>
+          <div>
+            <p className="draft-kicker">确认前安全检查</p>
+            <h3>预约草稿已生成</h3>
+          </div>
         </div>
-        <span>{draft.data_confidence || 'seed'}</span>
+        <span className="draft-status">{draft.data_confidence || 'seed'}</span>
       </div>
 
-      <div className="safety-notice">{draft.safety_notice}</div>
+      <div className="safety-notice">
+        <span>{draft.safety_notice}</span>
+      </div>
 
       <div className="draft-meta">
-        <span>支付方式：{payModeLabel(draft.pay_mode)}</span>
-        <span>数据来源：{draft.data_source || 'seed/mock'}</span>
-        {draft.updated_at && <span>更新时间：{draft.updated_at}</span>}
+        <span>{payModeLabel(draft.pay_mode)}</span>
+        <span>{draft.data_source || 'seed/mock'}</span>
+        {draft.expires_at && <span>{draft.expires_at}</span>}
+        {draft.updated_at && <span>{draft.updated_at}</span>}
       </div>
 
       <div className="draft-items">

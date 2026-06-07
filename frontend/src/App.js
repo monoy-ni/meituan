@@ -17,14 +17,22 @@ const SCENE_CHOICES = [
   {
     id: 'friends',
     title: '朋友局',
+    marker: '局',
+    kicker: '3-6 人组局',
     subtitle: '先定这局是回血、热闹、出片、聊天还是省钱。',
+    promise: '适合把松散想法快速整理成一条可执行路线。',
+    checkpoints: ['玩法定位', '预算边界', '集合范围'],
     userText: '我想安排朋友局',
     bootstrap: '朋友局',
   },
   {
     id: 'couple',
     title: '情侣约会',
+    marker: '约',
+    kicker: '两人节奏',
     subtitle: '不直接问关系阶段，通过聊天判断是升温还是日常出行。',
+    promise: '适合把氛围、体力、仪式感和预约安全一起平衡。',
+    checkpoints: ['关系温度', '约会节奏', '安全边界'],
     userText: '我想安排情侣约会',
     bootstrap: '情侣约会',
   },
@@ -60,6 +68,14 @@ const STEP_LABELS = {
   booking_confirmation: '预约结果',
 };
 
+const STEP_FLOW = [
+  { id: 'chatting', label: '确认' },
+  { id: 'options', label: '方案' },
+  { id: 'refining', label: '调整' },
+  { id: 'booking_draft', label: '草稿' },
+  { id: 'booking_confirmation', label: '结果' },
+];
+
 const isBookingIntent = (text) => (
   ['预约', '预定', '订', '下单', '就这个', '帮我订', '帮我定'].some((word) => text.includes(word))
 );
@@ -78,6 +94,15 @@ const makeMessage = (role, content) => ({
   content,
 });
 
+const getCostRange = (optionList) => {
+  if (!optionList.length) return '待生成';
+  const costs = optionList.map((option) => option.estimated_cost_per_person).filter(Number.isFinite);
+  if (!costs.length) return '待确认';
+  const min = Math.min(...costs);
+  const max = Math.max(...costs);
+  return min === max ? `¥${min}/人` : `¥${min}-${max}/人`;
+};
+
 function App() {
   const [sessionId, setSessionId] = useState(null);
   const [scene, setScene] = useState(null);
@@ -95,12 +120,24 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   const visibleOptions = useMemo(() => options.slice(0, 3), [options]);
+  const currentScene = useMemo(
+    () => SCENE_CHOICES.find((choice) => choice.id === scene) || null,
+    [scene],
+  );
+  const costRange = useMemo(() => getCostRange(visibleOptions), [visibleOptions]);
 
   const replySuggestions = useMemo(() => {
     if (!scene || options.length > 0) return [];
     const nextStep = conversation?.next_step;
     return SUGGESTIONS[scene]?.[nextStep] || [];
   }, [conversation, options.length, scene]);
+
+  const flowIndex = useMemo(() => {
+    const index = STEP_FLOW.findIndex((step) => step.id === appStep);
+    if (index >= 0) return index;
+    if (appStep === 'entry') return -1;
+    return 0;
+  }, [appStep]);
 
   const addMessage = (role, content) => {
     setMessages((current) => [...current, makeMessage(role, content)]);
@@ -336,15 +373,25 @@ function App() {
   return (
     <div className="app">
       <main className="app-shell">
-        <header className="hero-band">
-          <div>
-            <p className="eyebrow">杭州本地一日主题局</p>
-            <h1>先聊清楚，再把一整天安排成局</h1>
-            <p className="hero-copy">先判断朋友局还是情侣约会，再由 AI 多轮确认需求，最后给出能直接选择、调整和预约的完整路线。</p>
+        <header className="product-bar">
+          <div className="brand-lockup">
+            <div className="brand-mark" aria-hidden="true">HZ</div>
+            <div>
+              <p>杭州本地生活 Agent</p>
+              <h1>杭州主题局策划台</h1>
+            </div>
           </div>
-          <div className="version-stack">
+
+          <div className="status-strip" aria-label="系统状态">
+            <span>杭州</span>
+            <span>Mock 预约</span>
             <span>后端 v1.5.0</span>
             <span>前端 v0.6.0</span>
+            {appStep !== 'entry' && (
+              <button type="button" className="ghost-action" onClick={resetFlow} disabled={isLoading}>
+                重新开始
+              </button>
+            )}
           </div>
         </header>
 
@@ -358,32 +405,65 @@ function App() {
         {appStep === 'entry' ? (
           <section className="entry-panel" aria-label="选择出行人群">
             <div className="entry-copy">
-              <p className="eyebrow">第一步</p>
-              <h2>这次先按谁的关系来安排？</h2>
-              <p>朋友局要先定这局的定位；情侣约会要从语气里判断是关系升温，还是老夫老妻的日常出行。</p>
+              <span className="surface-label">从关系开始规划</span>
+              <h2>把“去哪儿”整理成可选择的本地路线</h2>
+              <p>先收齐场景、预算、时间和路线边界，再把杭州本地供给整理成可比较、可调整、可生成预约草稿的方案。</p>
+
+              <div className="decision-metrics" aria-label="规划维度">
+                <span>3 套路线</span>
+                <span>人均预算</span>
+                <span>预约草稿</span>
+              </div>
             </div>
+
             <div className="scene-grid">
               {SCENE_CHOICES.map((choice) => (
                 <button
                   key={choice.id}
                   type="button"
-                  className="scene-card"
+                  className={`scene-card scene-card--${choice.id}`}
                   onClick={() => handleSceneSelect(choice)}
                   disabled={isLoading}
                 >
-                  <span>{choice.title}</span>
-                  <strong>{choice.id === 'friends' ? '先定局的定位' : '先判断关系温度'}</strong>
+                  <span className="scene-icon" aria-hidden="true">{choice.marker}</span>
+                  <span className="scene-kicker">{choice.kicker}</span>
+                  <strong>{choice.title}</strong>
                   <p>{choice.subtitle}</p>
+                  <small>{choice.promise}</small>
+                  <span className="scene-checkpoints">
+                    {choice.checkpoints.map((checkpoint) => (
+                      <em key={checkpoint}>{checkpoint}</em>
+                    ))}
+                  </span>
                 </button>
               ))}
             </div>
           </section>
         ) : (
           <section className="flow-shell">
-            <aside className="chat-panel">
-              <div className="flow-topline">
-                <span>{SCENE_CHOICES.find((choice) => choice.id === scene)?.title}</span>
-                <b>{STEP_LABELS[appStep]}</b>
+            <aside className="chat-panel" aria-label="对话控制台">
+              <div className="panel-heading">
+                <div>
+                  <p>对话控制台</p>
+                  <h2>{currentScene?.title || '主题局'}</h2>
+                </div>
+                <span>{STEP_LABELS[appStep]}</span>
+              </div>
+
+              <div className="step-track" aria-label="流程进度">
+                {STEP_FLOW.map((step, index) => (
+                  <span
+                    key={step.id}
+                    className={[
+                      'step-dot',
+                      index < flowIndex ? 'is-done' : '',
+                      index === flowIndex ? 'is-active' : '',
+                    ].filter(Boolean).join(' ')}
+                  >
+                    {index < flowIndex ? '已' : index + 1}
+                    <b>{step.label}</b>
+                  </span>
+                ))}
               </div>
 
               <div className="message-list" aria-live="polite">
@@ -403,7 +483,7 @@ function App() {
               )}
 
               {options.length > 0 && (
-                <div className="quick-tunes">
+                <div className="quick-tunes" aria-label="调整路线">
                   {QUICK_TUNES.map((tune) => (
                     <button key={tune.label} type="button" onClick={() => handleTune(tune.message)} disabled={isLoading || !sessionId}>
                       {tune.label}
@@ -413,35 +493,49 @@ function App() {
               )}
 
               <form className="chat-form" onSubmit={handleSubmit}>
-                <input
-                  value={inputText}
-                  onChange={(event) => setInputText(event.target.value)}
-                  placeholder={selectedOption ? '比如：就这个，帮我订；或者再便宜点' : '把你的想法直接说出来'}
-                  disabled={isLoading || !scene}
-                />
+                <label className="input-shell">
+                  <span aria-hidden="true">输入</span>
+                  <input
+                    value={inputText}
+                    onChange={(event) => setInputText(event.target.value)}
+                    placeholder={selectedOption ? '就这个，帮我订；或者再便宜点' : '把你的想法直接说出来'}
+                    disabled={isLoading || !scene}
+                  />
+                </label>
                 <button type="submit" disabled={isLoading || !inputText.trim()}>
                   发送
                 </button>
               </form>
-
-              <button type="button" className="text-action" onClick={resetFlow} disabled={isLoading}>
-                重新开始
-              </button>
             </aside>
 
             <section className="route-panel" aria-label="方案和预约">
               {visibleOptions.length === 0 ? (
                 <div className="empty-route">
-                  <p className="eyebrow">等待生成</p>
-                  <h2>卡片会在需求确认后出现</h2>
-                  <p>先和 AI 聊两三轮：局的定位、预算、时间和体力偏好确定后，这里会出现 3 个完整方案。</p>
+                  <div className="route-visual" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <p className="surface-label">路线工作台</p>
+                  <h2>偏好收齐后生成可比较方案</h2>
+                  <div className="empty-grid">
+                    <span>预算</span>
+                    <span>距离</span>
+                    <span>预约</span>
+                    <span>风险</span>
+                  </div>
                 </div>
               ) : (
                 <>
                   <div className="section-heading">
                     <div>
-                      <p className="eyebrow">完整方案</p>
+                      <p className="surface-label">方案决策区</p>
                       <h2>选一个局，再继续调整或预约</h2>
+                    </div>
+                    <div className="route-summary-strip" aria-label="方案概览">
+                      <span>{visibleOptions.length} 套方案</span>
+                      <span>{costRange}</span>
+                      <span>可调整</span>
                     </div>
                   </div>
 
@@ -478,7 +572,7 @@ function App() {
           </section>
         )}
 
-        {isLoading && <div className="loading-bar">正在整理</div>}
+        {isLoading && <div className="loading-bar">正在整理路线</div>}
       </main>
     </div>
   );

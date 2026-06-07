@@ -1,14 +1,14 @@
 import React from 'react';
 import './ActivityCard.css';
 
-const TYPE_LABELS = {
-  dining: '吃',
-  activity: '玩',
-  checkin: '打卡',
-  relax: '收尾',
-  nightlife: '夜间',
-  hotel: '夜宿',
-  gift: '礼物',
+const TYPE_META = {
+  dining: { label: '吃' },
+  activity: { label: '玩' },
+  checkin: { label: '打卡' },
+  relax: { label: '收尾' },
+  nightlife: { label: '夜间' },
+  hotel: { label: '夜宿' },
+  gift: { label: '礼物' },
 };
 
 const confidenceLabel = {
@@ -17,53 +17,72 @@ const confidenceLabel = {
   realtime: '实时确认',
 };
 
+const readinessLabel = {
+  ready: '可预约',
+  needs_confirmation: '需确认',
+  partial: '部分可约',
+};
+
+const formatCluster = (cluster) => String(cluster || 'hangzhou').replaceAll('_', ' ');
+
 const ActivityCard = ({ option, isSelected, refreshNote, onSelect, onRefresh, onBook, isLoading }) => {
-  const firstCluster = option.timeline_items?.find((item) => item.area_cluster)?.area_cluster || 'hangzhou';
+  const timelineItems = Array.isArray(option.timeline_items) ? option.timeline_items : [];
+  const firstCluster = timelineItems.find((item) => item.area_cluster)?.area_cluster || 'hangzhou';
   const experienceCard = option.experience_card || {};
   const experienceFlow = Array.isArray(experienceCard.flow) ? experienceCard.flow : [];
   const vibeTags = Array.isArray(experienceCard.vibe_tags) ? experienceCard.vibe_tags : [];
   const signatureMoments = Array.isArray(experienceCard.signature_moments) ? experienceCard.signature_moments : [];
   const hostTips = Array.isArray(experienceCard.host_tips) ? experienceCard.host_tips : [];
+  const readiness = readinessLabel[option.booking_readiness] || option.booking_readiness || '待确认';
 
   return (
     <article className={`activity-card ${isSelected ? 'selected' : ''}`}>
       <div className="card-topline">
-        <span className="cluster-pill">{firstCluster.replaceAll('_', ' ')}</span>
-        <span className="confidence-pill">{confidenceLabel[option.data_confidence] || option.data_confidence}</span>
+        <span className="cluster-pill">{formatCluster(firstCluster)}</span>
+        <span className="confidence-pill">{confidenceLabel[option.data_confidence] || option.data_confidence || '估算'}</span>
       </div>
 
       <div className="card-title-row">
-        <h3>{option.theme_name}</h3>
-        <strong>¥{option.estimated_cost_per_person}/人</strong>
+        <div>
+          <h3>{option.theme_name}</h3>
+          <p className="route-story">{option.route_story || option.emotional_hook}</p>
+        </div>
+        <strong className="price-lockup">¥{option.estimated_cost_per_person}/人</strong>
       </div>
-
-      <p className="route-story">{option.route_story || option.emotional_hook}</p>
 
       <div className="route-metrics">
         <span>{option.effort_level}体力</span>
         <span>{option.total_distance}km</span>
-        <span>{option.booking_readiness}</span>
+        <span>{readiness}</span>
       </div>
 
-      <ol className="timeline-list">
-        {(option.timeline_items || []).map((item) => (
-          <li key={`${option.id}-${item.merchant_id}-${item.start_time}`}>
-            <time>{item.start_time}-{item.end_time}</time>
-            <div>
-              <span className="type-tag">{TYPE_LABELS[item.type] || item.type}</span>
-              <strong>{item.merchant_name}</strong>
-              <p>{item.why_this_fits}</p>
-              {item.checkin_hint && <small>{item.checkin_hint}</small>}
-            </div>
-            <b>¥{item.price_estimate}</b>
-          </li>
-        ))}
+      <ol className="timeline-rail" aria-label="路线时间线">
+        {timelineItems.map((item, index) => {
+          const typeMeta = TYPE_META[item.type] || { label: item.type };
+          return (
+            <li key={`${option.id}-${item.merchant_id}-${item.start_time}`}>
+              <div className="rail-marker" aria-hidden="true">{index + 1}</div>
+              <div className="timeline-main">
+                <div className="timeline-time">
+                  <time>{item.start_time}-{item.end_time}</time>
+                </div>
+                <div className="timeline-title-row">
+                  <span className="type-tag">{typeMeta.label}</span>
+                  <strong>{item.merchant_name}</strong>
+                  <b>¥{item.price_estimate}</b>
+                </div>
+                <p>{item.why_this_fits}</p>
+                {item.checkin_hint && <small>{item.checkin_hint}</small>}
+              </div>
+            </li>
+          );
+        })}
       </ol>
 
       {experienceCard.title && (
         <section className="experience-card-panel">
           <div className="experience-heading">
-            <span>{experienceCard.designer === 'couple-date-designer' ? '约会玩法卡' : '主题局玩法卡'}</span>
+            <span>{experienceCard.designer === 'couple-date-designer' ? '约会玩法亮点' : '主题局玩法亮点'}</span>
             <strong>{experienceCard.title}</strong>
           </div>
           {experienceCard.theme_line && <p className="experience-line">{experienceCard.theme_line}</p>}
@@ -105,9 +124,20 @@ const ActivityCard = ({ option, isSelected, refreshNote, onSelect, onRefresh, on
         </section>
       )}
 
-      <div className="info-block">
-        <span>通勤</span>
-        <p>{option.transport_summary}</p>
+      <div className="detail-grid">
+        {option.transport_summary && (
+          <div className="info-block">
+            <span>通勤</span>
+            <p>{option.transport_summary}</p>
+          </div>
+        )}
+
+        {option.checkin_points?.length > 0 && (
+          <div className="info-block">
+            <span>打卡</span>
+            <p>{option.checkin_points.join(' / ')}</p>
+          </div>
+        )}
       </div>
 
       {option.gain_points?.length > 0 && (
@@ -115,13 +145,6 @@ const ActivityCard = ({ option, isSelected, refreshNote, onSelect, onRefresh, on
           {option.gain_points.slice(0, 3).map((point) => (
             <span key={point}>{point}</span>
           ))}
-        </div>
-      )}
-
-      {option.checkin_points?.length > 0 && (
-        <div className="info-block">
-          <span>打卡点</span>
-          <p>{option.checkin_points.join(' / ')}</p>
         </div>
       )}
 

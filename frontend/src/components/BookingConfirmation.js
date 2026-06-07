@@ -8,8 +8,11 @@ const BookingConfirmation = ({ confirmation }) => {
   return (
     <section className={`booking-confirmation ${isSuccess ? 'success' : 'cancelled'}`}>
       <div className="confirmation-header">
-        <p>{confirmation.status}</p>
-        <h3>{title}</h3>
+        <span className="confirmation-icon" aria-hidden="true">{isSuccess ? '成' : '止'}</span>
+        <div>
+          <p>{confirmation.status}</p>
+          <h3>{title}</h3>
+        </div>
       </div>
 
       <p className="confirmation-message">{confirmation.message}</p>

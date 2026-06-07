@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-07T21:12:02",
+  "generated_at": "2026-06-07T21:31:21",
   "metrics": {
     "total_cases": 8,
     "passed_cases": 8,
@@ -187,11 +187,11 @@
             ],
             "relationship_stage": null
           },
-          "duration_ms": 4
+          "duration_ms": 5
         }
       ],
       "tool_calls": [],
-      "duration_ms": 10,
+      "duration_ms": 11,
       "exception_type": null,
       "exception_message": null,
       "traceback_text": null
@@ -508,7 +508,7 @@
         }
       ],
       "tool_calls": [],
-      "duration_ms": 6,
+      "duration_ms": 7,
       "exception_type": null,
       "exception_message": null,
       "traceback_text": null
@@ -662,7 +662,7 @@
           }
         }
       ],
-      "duration_ms": 3,
+      "duration_ms": 4,
       "exception_type": null,
       "exception_message": null,
       "traceback_text": null
@@ -1242,7 +1242,7 @@
       ],
       "transcript": [],
       "tool_calls": [],
-      "duration_ms": 10,
+      "duration_ms": 12,
       "exception_type": null,
       "exception_message": null,
       "traceback_text": null
@@ -1311,9 +1311,9 @@
           "passed": true,
           "expected": "mock order ids",
           "actual": [
-            "order_b9bf8116",
-            "order_b63df713",
-            "order_d966b6cb"
+            "order_d2393610",
+            "order_8ddb25e6",
+            "order_314e659f"
           ],
           "details": "",
           "debug_hint": "",
@@ -1381,11 +1381,11 @@
         {
           "name": "draft",
           "value": {
-            "id": "draft_377e5b1962e0",
+            "id": "draft_1fdc3d3792da",
             "status": "pending_user_confirmation",
             "items": 3,
             "aa_draft": {
-              "aa_id": "aa_af5bd6797a",
+              "aa_id": "aa_1c62644dcc",
               "total": 1128,
               "party_size": 4,
               "per_person": 282,
@@ -1408,9 +1408,9 @@
           "value": {
             "status": "confirmed",
             "order_ids": [
-              "order_b9bf8116",
-              "order_b63df713",
-              "order_d966b6cb"
+              "order_d2393610",
+              "order_8ddb25e6",
+              "order_314e659f"
             ]
           },
           "details": ""
@@ -1449,7 +1449,7 @@
           "output_summary": {}
         }
       ],
-      "duration_ms": 7,
+      "duration_ms": 8,
       "exception_type": null,
       "exception_message": null,
       "traceback_text": null

@@ -12,7 +12,7 @@ from tests.theme_confirmation_harness import ThemeConfirmationCase, ThemeConfirm
 
 class ThemeConfirmationValidationTest(unittest.TestCase):
     def test_default_suite_runs_without_fatal_errors(self) -> None:
-        harness = ThemeConfirmationHarness()
+        harness = ThemeConfirmationHarness(agent_factory=ActivityPlanningAgent)
         suite = harness.run_cases(build_theme_confirmation_cases())
 
         self.assertEqual(suite.metrics.total_cases, 10)
@@ -24,7 +24,11 @@ class ThemeConfirmationValidationTest(unittest.TestCase):
             time.sleep(0.2)
             return agent.chat_with_guidance(session_id, turn.message, scene_hint=turn.scene_hint)
 
-        harness = ThemeConfirmationHarness(timeout_seconds=0.01, turn_executor=slow_turn_executor)
+        harness = ThemeConfirmationHarness(
+            agent_factory=ActivityPlanningAgent,
+            timeout_seconds=0.01,
+            turn_executor=slow_turn_executor,
+        )
         case = ThemeConfirmationCase(
             case_id="ERR-01",
             title="超时捕获",
@@ -45,7 +49,7 @@ class ThemeConfirmationValidationTest(unittest.TestCase):
         def broken_turn_executor(agent: ActivityPlanningAgent, session_id: str, turn: ThemeConfirmationTurn) -> AgentResponse:
             raise RuntimeError("simulated dialogue crash")
 
-        harness = ThemeConfirmationHarness(turn_executor=broken_turn_executor)
+        harness = ThemeConfirmationHarness(agent_factory=ActivityPlanningAgent, turn_executor=broken_turn_executor)
         case = ThemeConfirmationCase(
             case_id="ERR-02",
             title="流程中断捕获",
@@ -72,7 +76,7 @@ class ThemeConfirmationValidationTest(unittest.TestCase):
                 message=" ",
             )
 
-        harness = ThemeConfirmationHarness(turn_executor=invalid_turn_executor)
+        harness = ThemeConfirmationHarness(agent_factory=ActivityPlanningAgent, turn_executor=invalid_turn_executor)
         case = ThemeConfirmationCase(
             case_id="ERR-03",
             title="输出格式错误捕获",
