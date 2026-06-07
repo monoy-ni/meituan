@@ -1,13 +1,36 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Optional
 
 from activity_agent import ActivityPlanningAgent
 from activity_agent.domain import Scene
 from activity_agent.domain.models import UserRequest
+
+
+def _load_dotenv():
+    """手动加载 .env 文件（不依赖 python-dotenv）"""
+    env_path = Path(__file__).parent.parent / ".env"
+    if not env_path.exists():
+        return
+    with open(env_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            os.environ[key] = value
+
+
+_load_dotenv()
 
 
 DEFAULT_LOCATION = "奥映世纪轩"
