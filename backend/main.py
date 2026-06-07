@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+import logging
 from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Response
@@ -18,6 +19,12 @@ from activity_agent.domain import AgentResponse, BookingConfirmation, BookingDra
 BACKEND_VERSION = "1.5.0"
 FRONTEND_TARGET_VERSION = "0.6.0"
 
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("activity_agent.backend")
+
 app = FastAPI(title="杭州本地一日主题局 Agent API", version=BACKEND_VERSION)
 
 app.add_middleware(
@@ -28,7 +35,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-agent = ActivityPlanningAgent.from_env()
+def _create_agent_from_env() -> ActivityPlanningAgent:
+    next_agent = ActivityPlanningAgent.from_env()
+    settings = getattr(next_agent, "settings", None)
+    if settings is None:
+        logger.info("model_config_loaded settings_available=False")
+        return next_agent
+
+    logger.info(
+        "model_config_loaded base_url=%s model=%s api_key_configured=%s temperature=%s timeout_seconds=%s data_mode=%s map_provider=%s",
+        settings.llm.base_url,
+        settings.llm.model,
+        bool(settings.llm.api_key),
+        settings.llm.temperature,
+        settings.llm.timeout_seconds,
+        settings.tools.data_mode,
+        settings.tools.map_provider,
+    )
+    return next_agent
+
+
+agent = _create_agent_from_env()
 sessions: dict[str, Any] = {}
 
 
@@ -405,5 +432,5 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
 
     print(f"Starting Hangzhou itinerary Agent API on http://{host}:{port}")
-    print(f"API 文档: http://{host}:{port}/docs")
+    print(f"API docs: http://{host}:{port}/docs")
     uvicorn.run(app, host=host, port=port)
