@@ -304,6 +304,9 @@ class ThemePlanner:
         score = 0
         if request.relationship_stage in theme.stages:
             score += 4
+            # 给关系修复这个场景额外加分
+            if request.relationship_stage == "想修复关系" and theme.id == "couple_repair":
+                score += 5
         if request.relationship_goal in theme.goals:
             score += 4
         if request.hard_constraints.get("hotel_wanted") and theme.id == "couple_overnight":
