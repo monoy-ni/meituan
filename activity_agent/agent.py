@@ -30,7 +30,16 @@ from activity_agent.modules.itinerary_composer import ItineraryComposer
 from activity_agent.modules.review_memory import ReviewMemory
 from activity_agent.modules.share_card_generator import ShareCardGenerator
 from activity_agent.modules.theme_planner import ThemePlanner
-from activity_agent.providers import MockCommerceProvider, MockMapDataProvider, MockWeatherProvider, SeedLocalDataProvider
+from activity_agent.providers import (
+    AmapMapDataProvider,
+    AmapWeatherProvider,
+    AmapWebServiceClient,
+    HybridLiveDataProvider,
+    MockCommerceProvider,
+    MockMapDataProvider,
+    MockWeatherProvider,
+    SeedLocalDataProvider,
+)
 from activity_agent.storage import SQLiteRepository
 from activity_agent.tools import MockMeituanToolClient
 
@@ -51,11 +60,11 @@ class ActivityPlanningAgent:
             tools=ToolSettings(),
         )
         self.repository = repository or SQLiteRepository(self.settings.storage.path)
-        self.local_data_provider = SeedLocalDataProvider(self.repository)
+        self.local_data_provider = self._build_local_data_provider()
         local_catalog = self.local_data_provider.list_supplies("hangzhou")
         self.tool_client = tool_client or MockMeituanToolClient(local_catalog)
-        self.map_provider = MockMapDataProvider(self.repository)
-        self.weather_provider = MockWeatherProvider()
+        self.map_provider = self._build_map_provider()
+        self.weather_provider = self._build_weather_provider()
         self.commerce_provider = MockCommerceProvider(self.tool_client)
         
         # 简化 LLM 客户端选择 - 直接选择，没有降级逻辑
@@ -80,6 +89,34 @@ class ActivityPlanningAgent:
     def from_env(cls) -> "ActivityPlanningAgent":
         settings = AgentSettings.from_env()
         return cls(settings=settings)
+
+    def _build_local_data_provider(self):
+        if str(self.settings.tools.data_mode).lower() in {"hybrid", "live", "real"}:
+            return HybridLiveDataProvider(self.repository, self.settings.tools)
+        return SeedLocalDataProvider(self.repository)
+
+    def _build_map_provider(self):
+        if self._use_amap() and self.settings.tools.amap_api_key:
+            client = AmapWebServiceClient(self.settings.tools.amap_api_key)
+            return AmapMapDataProvider(client, self.repository)
+        return MockMapDataProvider(self.repository)
+
+    def _build_weather_provider(self):
+        if self._use_amap() and self.settings.tools.amap_api_key:
+            client = AmapWebServiceClient(self.settings.tools.amap_api_key)
+            return AmapWeatherProvider(client, self.settings.tools.amap_city)
+        return MockWeatherProvider()
+
+    def _use_amap(self) -> bool:
+        return str(self.settings.tools.map_provider).lower() == "amap"
+
+    def _refresh_runtime_catalog(self, city: str = "hangzhou") -> None:
+        local_catalog = self.local_data_provider.list_supplies(city)
+        self.tool_client.catalog = local_catalog
+        from activity_agent.modules.supply_matcher import SupplyMatcher
+
+        self.supply_matcher = SupplyMatcher(local_catalog)
+        self.itinerary_composer = ItineraryComposer(self.supply_matcher)
 
     def start_session(self, user_id: str | None = None) -> Session:
         return self.repository.create_session(user_id)
@@ -165,11 +202,22 @@ class ActivityPlanningAgent:
                 }
             )
 
+        live_confidence = "live" if (
+            route_snapshot.data_confidence == "live" or weather_snapshot.data_confidence == "live"
+        ) else ("cache" if route_snapshot.data_confidence == "cache" else "seed")
+        degraded = route_snapshot.data_confidence != "live" or weather_snapshot.data_confidence != "live"
+        refresh_status = "live_refreshed" if live_confidence == "live" else "seed_estimate"
+        refresh_message = (
+            "Route/weather refreshed from configured real APIs; commerce remains mock because Meituan API is not authorized."
+            if live_confidence == "live"
+            else "Real route/weather APIs unavailable or not configured; using seed/cache estimates."
+        )
+
         return {
             "itinerary_id": option.id,
-            "status": "seed_estimate",
+            "status": refresh_status,
             "provider_mode": self.settings.tools.data_mode,
-            "data_confidence": "cache" if route_snapshot.data_confidence == "cache" else "seed",
+            "data_confidence": live_confidence,
             "route": {
                 "provider": route_snapshot.provider,
                 "status": route_snapshot.status,
@@ -186,12 +234,30 @@ class ActivityPlanningAgent:
                 "availability": availability,
                 "message": "库存和价格为 mock/seed 估算，真实履约需接授权接口后确认。",
             },
-            "degraded": True,
-            "message": "当前没有真实地图/天气/交易 Key，已用 seed/cache 估算刷新；出发前建议确认。",
+            "degraded": degraded,
+            "message": refresh_message,
             "tool_events": [event.__dict__ for event in events],
         }
 
-    def sync_provider_data(self, city: str = "hangzhou") -> dict[str, object]:
+    def sync_provider_data(
+        self,
+        city: str = "hangzhou",
+        keywords: list[str] | None = None,
+        area: str | None = None,
+    ) -> dict[str, object]:
+        sync_live_sources = getattr(self.local_data_provider, "sync_live_sources", None)
+        if callable(sync_live_sources):
+            result = sync_live_sources(city, keywords=keywords, area=area)
+            self._refresh_runtime_catalog(city)
+            clusters = self.local_data_provider.list_route_clusters(city)
+            templates = self.local_data_provider.list_theme_templates(city)
+            return {
+                **result,
+                "route_clusters": len(clusters),
+                "theme_templates": len(templates),
+                "commerce_provider": "mock_meituan",
+            }
+
         supplies = self.local_data_provider.list_supplies(city)
         clusters = self.local_data_provider.list_route_clusters(city)
         templates = self.local_data_provider.list_theme_templates(city)

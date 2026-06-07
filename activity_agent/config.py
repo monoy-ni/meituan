@@ -38,7 +38,16 @@ class ToolSettings:
     data_mode: str = "seed"
     map_provider: str = "none"
     amap_api_key: str | None = None
+    amap_city: str = "330100"
+    amap_poi_keywords: str = "美食,景点,博物馆,手作,茶馆,酒吧,桌游,密室"
+    amap_poi_types: str = ""
     tencent_map_api_key: str | None = None
+    hangzhou_open_data_api_url: str | None = None
+    hangzhou_open_data_app_key: str | None = None
+    hangzhou_open_data_app_secret: str | None = None
+    hangzhou_open_data_token: str | None = None
+    hangzhou_open_data_params: str | None = None
+    http_timeout_seconds: float = 10.0
 
     @classmethod
     def from_env(cls) -> "ToolSettings":
@@ -47,7 +56,20 @@ class ToolSettings:
             data_mode=os.getenv("ACTIVITY_AGENT_DATA_MODE", cls.data_mode),
             map_provider=os.getenv("ACTIVITY_AGENT_MAP_PROVIDER", cls.map_provider),
             amap_api_key=os.getenv("AMAP_API_KEY") or None,
+            amap_city=os.getenv("AMAP_CITY", cls.amap_city),
+            amap_poi_keywords=os.getenv("AMAP_POI_KEYWORDS", cls.amap_poi_keywords),
+            amap_poi_types=os.getenv("AMAP_POI_TYPES", cls.amap_poi_types),
             tencent_map_api_key=os.getenv("TENCENT_MAP_API_KEY") or None,
+            hangzhou_open_data_api_url=os.getenv("HANGZHOU_OPEN_DATA_API_URL") or None,
+            hangzhou_open_data_app_key=(
+                os.getenv("HANGZHOU_OPEN_DATA_APP_KEY")
+                or os.getenv("HANGZHOU_OPEN_DATA_APP_ID")
+                or None
+            ),
+            hangzhou_open_data_app_secret=os.getenv("HANGZHOU_OPEN_DATA_APP_SECRET") or None,
+            hangzhou_open_data_token=os.getenv("HANGZHOU_OPEN_DATA_TOKEN") or None,
+            hangzhou_open_data_params=os.getenv("HANGZHOU_OPEN_DATA_PARAMS") or None,
+            http_timeout_seconds=float(os.getenv("ACTIVITY_AGENT_HTTP_TIMEOUT_SECONDS", str(cls.http_timeout_seconds))),
         )
 
 

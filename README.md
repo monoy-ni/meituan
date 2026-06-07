@@ -42,6 +42,15 @@ ACTIVITY_AGENT_LLM_BASE_URL=https://api.openai.com/v1
 ACTIVITY_AGENT_LLM_API_KEY=your-api-key
 ACTIVITY_AGENT_LLM_MODEL=gpt-4.1-mini
 ACTIVITY_AGENT_STORAGE_PATH=./activity_agent.sqlite3
+ACTIVITY_AGENT_DATA_MODE=hybrid
+ACTIVITY_AGENT_MAP_PROVIDER=amap
+AMAP_API_KEY=your-amap-web-service-key
+AMAP_CITY=330100
+AMAP_POI_KEYWORDS=美食,景点,博物馆,手作,茶馆,酒吧,桌游,密室
+HANGZHOU_OPEN_DATA_API_URL=optional-official-dataset-api-url
+HANGZHOU_OPEN_DATA_APP_KEY=optional-app-key
+HANGZHOU_OPEN_DATA_APP_SECRET=optional-app-secret
+HANGZHOU_OPEN_DATA_TOKEN=optional-bearer-token
 ```
 
 ### 运行示例
