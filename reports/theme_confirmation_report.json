@@ -1,0 +1,1304 @@
+{
+  "generated_at": "2026-06-07T18:51:58",
+  "seed_file_path": "C:\\Users\\lenovo\\Desktop\\meituan2\\activity_agent\\data\\theme_keyword_seeds.py",
+  "metrics": {
+    "total_cases": 10,
+    "passed_cases": 0,
+    "failed_cases": 10,
+    "case_pass_rate": 0.0,
+    "theme_accuracy": 0.0,
+    "relationship_stage_accuracy": 0.0,
+    "exception_case_count": 0,
+    "avg_turns_per_case": 5.1
+  },
+  "case_results": [
+    {
+      "case_id": "TC-01",
+      "title": "朋友回血主题识别",
+      "category": "信息明确",
+      "passed": false,
+      "seed_basis": "friends_recovery -> aliases=['friends_recovery', '下班兄弟回血局', '下班回血局'], keywords=['KTV', '烧烤', '酒吧']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "朋友局",
+          "scene_hint": "friends",
+          "assistant_output": "帮你安排朋友局没问题！ 跟我说说大概想怎么玩？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 4406
+        },
+        {
+          "turn_index": 2,
+          "user_input": "最近有点累，想放松回血",
+          "scene_hint": null,
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 4420
+        },
+        {
+          "turn_index": 3,
+          "user_input": "人均220",
+          "scene_hint": null,
+          "assistant_output": "安排在什么时候呢？今晚、明晚，还是周末？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_time",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 2876
+        },
+        {
+          "turn_index": 4,
+          "user_input": "今晚",
+          "scene_hint": null,
+          "assistant_output": "安排在什么时候呢？今晚、明晚，还是周末？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_time",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 328
+        },
+        {
+          "turn_index": 5,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "安排在什么时候呢？今晚、明晚，还是周末？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_time",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 363
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": true,
+          "expected": "friends",
+          "actual": "friends",
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "下班回血局",
+          "actual": null,
+          "details": "friends_recovery -> aliases=['friends_recovery', '下班兄弟回血局', '下班回血局'], keywords=['KTV', '烧烤', '酒吧']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "collecting_friends_context",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "friends",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "collecting_friends_context",
+      "final_next_step": "ask_time",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    },
+    {
+      "case_id": "TC-02",
+      "title": "朋友出片聊天主题识别",
+      "category": "信息明确",
+      "passed": false,
+      "seed_basis": "friends_photo_chat -> aliases=['friends_photo_chat', '出片聊天局'], keywords=['展览', '甜品', '咖啡']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "和朋友出去玩",
+          "scene_hint": null,
+          "assistant_output": "好的！是想和朋友聚聚，还是想安排约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 324
+        },
+        {
+          "turn_index": 2,
+          "user_input": "想拍照出片，顺便轻松聊聊天",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 393
+        },
+        {
+          "turn_index": 3,
+          "user_input": "人均260",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 467
+        },
+        {
+          "turn_index": 4,
+          "user_input": "周末",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 378
+        },
+        {
+          "turn_index": 5,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 333
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": true,
+          "expected": "friends",
+          "actual": "friends",
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "出片聊天局",
+          "actual": null,
+          "details": "friends_photo_chat -> aliases=['friends_photo_chat', '出片聊天局'], keywords=['展览', '甜品', '咖啡']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "identifying_scene",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "friends",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "identifying_scene",
+      "final_next_step": "choose_scene",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    },
+    {
+      "case_id": "TC-03",
+      "title": "模糊开场后确认省钱朋友局",
+      "category": "信息模糊",
+      "passed": false,
+      "seed_basis": "friends_budget -> aliases=['friends_budget', '低成本快乐局'], keywords=['小吃', '桌游', '夜宵']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "今晚想出去玩",
+          "scene_hint": null,
+          "assistant_output": "好的！是想和朋友聚聚，还是想安排约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 363
+        },
+        {
+          "turn_index": 2,
+          "user_input": "和朋友",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 276
+        },
+        {
+          "turn_index": 3,
+          "user_input": "预算别太高，省钱一点",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 385
+        },
+        {
+          "turn_index": 4,
+          "user_input": "人均120",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 271
+        },
+        {
+          "turn_index": 5,
+          "user_input": "周末",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 389
+        },
+        {
+          "turn_index": 6,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 441
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": true,
+          "expected": "friends",
+          "actual": "friends",
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "低成本快乐局",
+          "actual": null,
+          "details": "friends_budget -> aliases=['friends_budget', '低成本快乐局'], keywords=['小吃', '桌游', '夜宵']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "identifying_scene",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "friends",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "identifying_scene",
+      "final_next_step": "choose_scene",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    },
+    {
+      "case_id": "TC-04",
+      "title": "情侣暧昧升温主题识别",
+      "category": "信息明确",
+      "passed": false,
+      "seed_basis": "couple_warmup -> aliases=['couple_warmup', '轻升温不尴尬约会'], keywords=['手作', '甜品', '咖啡']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "情侣约会",
+          "scene_hint": "couple",
+          "assistant_output": "约会安排包在我身上！",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_couple_feeling",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 300
+        },
+        {
+          "turn_index": 2,
+          "user_input": "想约她出来，有点怕尴尬，想自然一点",
+          "scene_hint": null,
+          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_budget",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 447
+        },
+        {
+          "turn_index": 3,
+          "user_input": "人均300",
+          "scene_hint": null,
+          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_budget",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 642
+        },
+        {
+          "turn_index": 4,
+          "user_input": "周六下午",
+          "scene_hint": null,
+          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_budget",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 653
+        },
+        {
+          "turn_index": 5,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_budget",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 279
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": true,
+          "expected": "couple",
+          "actual": "couple",
+          "details": ""
+        },
+        {
+          "name": "relationship_stage",
+          "passed": false,
+          "expected": "暧昧/追求中",
+          "actual": null,
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "轻升温不尴尬约会",
+          "actual": null,
+          "details": "couple_warmup -> aliases=['couple_warmup', '轻升温不尴尬约会'], keywords=['手作', '甜品', '咖啡']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "collecting_couple_context",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "couple",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "collecting_couple_context",
+      "final_next_step": "ask_budget",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    },
+    {
+      "case_id": "TC-05",
+      "title": "纪念日主题识别",
+      "category": "信息明确",
+      "passed": false,
+      "seed_basis": "couple_memory -> aliases=['couple_memory', '把普通周末过成小纪念日'], keywords=['手作', '西餐', '花店']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "纪念日想安排一下",
+          "scene_hint": null,
+          "assistant_output": "好的！是想和朋友聚聚，还是想安排约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 372
+        },
+        {
+          "turn_index": 2,
+          "user_input": "想浪漫一点，有点仪式感",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 402
+        },
+        {
+          "turn_index": 3,
+          "user_input": "人均520",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 284
+        },
+        {
+          "turn_index": 4,
+          "user_input": "周末晚上",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 373
+        },
+        {
+          "turn_index": 5,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 518
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": false,
+          "expected": "couple",
+          "actual": "friends",
+          "details": ""
+        },
+        {
+          "name": "relationship_stage",
+          "passed": false,
+          "expected": "纪念日",
+          "actual": null,
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "把普通周末过成小纪念日",
+          "actual": null,
+          "details": "couple_memory -> aliases=['couple_memory', '把普通周末过成小纪念日'], keywords=['手作', '西餐', '花店']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "identifying_scene",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "friends",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "identifying_scene",
+      "final_next_step": "choose_scene",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    },
+    {
+      "case_id": "TC-06",
+      "title": "关系修复主题识别",
+      "category": "边界场景",
+      "passed": false,
+      "seed_basis": "couple_repair -> aliases=['couple_repair', '关系修复缓冲约会'], keywords=['茶馆', '安静餐厅', '散步']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "最近跟对象吵架了，想修复关系",
+          "scene_hint": null,
+          "assistant_output": "好的！是想和朋友聚聚，还是想安排约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 345
+        },
+        {
+          "turn_index": 2,
+          "user_input": "想找个安静点的地方缓和一下",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 487
+        },
+        {
+          "turn_index": 3,
+          "user_input": "人均280",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 593
+        },
+        {
+          "turn_index": 4,
+          "user_input": "周末",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 422
+        },
+        {
+          "turn_index": 5,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 406
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": false,
+          "expected": "couple",
+          "actual": "friends",
+          "details": ""
+        },
+        {
+          "name": "relationship_stage",
+          "passed": false,
+          "expected": "想修复关系",
+          "actual": null,
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "关系修复缓冲约会",
+          "actual": null,
+          "details": "couple_repair -> aliases=['couple_repair', '关系修复缓冲约会'], keywords=['茶馆', '安静餐厅', '散步']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "identifying_scene",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "friends",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "identifying_scene",
+      "final_next_step": "choose_scene",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    },
+    {
+      "case_id": "TC-07",
+      "title": "夜宿放松主题识别",
+      "category": "信息完整",
+      "passed": false,
+      "seed_basis": "couple_overnight -> aliases=['couple_overnight', '夜宿放松约会'], keywords=['手作', '西餐', '酒店']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "情侣约会",
+          "scene_hint": "couple",
+          "assistant_output": "约会安排包在我身上！",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_couple_feeling",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 500
+        },
+        {
+          "turn_index": 2,
+          "user_input": "想过夜放松，酒店也可以",
+          "scene_hint": null,
+          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_budget",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 344
+        },
+        {
+          "turn_index": 3,
+          "user_input": "人均700",
+          "scene_hint": null,
+          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_budget",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 504
+        },
+        {
+          "turn_index": 4,
+          "user_input": "周末",
+          "scene_hint": null,
+          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_budget",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 334
+        },
+        {
+          "turn_index": 5,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_budget",
+          "options_theme_names": [],
+          "request_scene": "couple",
+          "request_relationship_stage": null,
+          "duration_ms": 550
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": true,
+          "expected": "couple",
+          "actual": "couple",
+          "details": ""
+        },
+        {
+          "name": "relationship_stage",
+          "passed": false,
+          "expected": "稳定情侣",
+          "actual": null,
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "夜宿放松约会",
+          "actual": null,
+          "details": "couple_overnight -> aliases=['couple_overnight', '夜宿放松约会'], keywords=['手作', '西餐', '酒店']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "collecting_couple_context",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "couple",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "collecting_couple_context",
+      "final_next_step": "ask_budget",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    },
+    {
+      "case_id": "TC-08",
+      "title": "杭州西湖低体力主题识别",
+      "category": "信息明确",
+      "passed": false,
+      "seed_basis": "hz_westlake_easy -> aliases=['hz_westlake_easy', '西湖轻松打卡局'], keywords=['茶馆', '咖啡', '西湖景点']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "朋友局",
+          "scene_hint": "friends",
+          "assistant_output": "帮你安排朋友局没问题！ 跟我说说大概想怎么玩？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 277
+        },
+        {
+          "turn_index": 2,
+          "user_input": "想杭州本地探索，去西湖打卡，少走路一点",
+          "scene_hint": null,
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 470
+        },
+        {
+          "turn_index": 3,
+          "user_input": "人均180",
+          "scene_hint": null,
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 317
+        },
+        {
+          "turn_index": 4,
+          "user_input": "周末下午",
+          "scene_hint": null,
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 333
+        },
+        {
+          "turn_index": 5,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 388
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": true,
+          "expected": "friends",
+          "actual": "friends",
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "西湖轻松打卡局",
+          "actual": null,
+          "details": "hz_westlake_easy -> aliases=['hz_westlake_easy', '西湖轻松打卡局'], keywords=['茶馆', '咖啡', '西湖景点']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "collecting_friends_context",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "friends",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "collecting_friends_context",
+      "final_next_step": "ask_mood",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    },
+    {
+      "case_id": "TC-09",
+      "title": "雨天室内低耗主题识别",
+      "category": "歧义信息",
+      "passed": false,
+      "seed_basis": "hz_rainy_indoor -> aliases=['hz_rainy_indoor', '雨天室内低耗局'], keywords=['商场', '手作', '茶馆']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "和朋友出去玩",
+          "scene_hint": null,
+          "assistant_output": "好的！是想和朋友聚聚，还是想安排约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 262
+        },
+        {
+          "turn_index": 2,
+          "user_input": "下雨天也想找个室内地方，不想太累",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 333
+        },
+        {
+          "turn_index": 3,
+          "user_input": "人均160",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 275
+        },
+        {
+          "turn_index": 4,
+          "user_input": "周末",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 309
+        },
+        {
+          "turn_index": 5,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
+          "conversation_state": "identifying_scene",
+          "conversation_next_step": "choose_scene",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 507
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": true,
+          "expected": "friends",
+          "actual": "friends",
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "雨天室内低耗局",
+          "actual": null,
+          "details": "hz_rainy_indoor -> aliases=['hz_rainy_indoor', '雨天室内低耗局'], keywords=['商场', '手作', '茶馆']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "identifying_scene",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "friends",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "identifying_scene",
+      "final_next_step": "choose_scene",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    },
+    {
+      "case_id": "TC-10",
+      "title": "发疯解压主题识别",
+      "category": "边界场景",
+      "passed": false,
+      "seed_basis": "friends_release -> aliases=['friends_release', '发疯解压局'], keywords=['KTV', '拳击', '酒吧', '烧烤']",
+      "transcript": [
+        {
+          "turn_index": 1,
+          "user_input": "朋友局",
+          "scene_hint": "friends",
+          "assistant_output": "帮你安排朋友局没问题！ 跟我说说大概想怎么玩？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 298
+        },
+        {
+          "turn_index": 2,
+          "user_input": "最近压力太大了，想发疯解压，热闹一点",
+          "scene_hint": null,
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 313
+        },
+        {
+          "turn_index": 3,
+          "user_input": "人均260",
+          "scene_hint": null,
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 286
+        },
+        {
+          "turn_index": 4,
+          "user_input": "今晚",
+          "scene_hint": null,
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 313
+        },
+        {
+          "turn_index": 5,
+          "user_input": "默认",
+          "scene_hint": null,
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
+          "options_theme_names": [],
+          "request_scene": "friends",
+          "request_relationship_stage": null,
+          "duration_ms": 325
+        }
+      ],
+      "validations": [
+        {
+          "name": "scene",
+          "passed": true,
+          "expected": "friends",
+          "actual": "friends",
+          "details": ""
+        },
+        {
+          "name": "top_theme",
+          "passed": false,
+          "expected": "发疯解压局",
+          "actual": null,
+          "details": "friends_release -> aliases=['friends_release', '发疯解压局'], keywords=['KTV', '拳击', '酒吧', '烧烤']"
+        },
+        {
+          "name": "final_state",
+          "passed": false,
+          "expected": "awaiting_selection",
+          "actual": "collecting_friends_context",
+          "details": ""
+        },
+        {
+          "name": "options_count",
+          "passed": false,
+          "expected": ">=3",
+          "actual": 0,
+          "details": ""
+        }
+      ],
+      "final_scene": "friends",
+      "final_relationship_stage": null,
+      "final_top_theme_name": null,
+      "final_state": "collecting_friends_context",
+      "final_next_step": "ask_mood",
+      "options_count": 0,
+      "exception_type": null,
+      "exception_message": null
+    }
+  ],
+  "theme_catalog": {
+    "friends_recovery": "下班回血局",
+    "friends_budget": "低成本快乐局",
+    "friends_photo_chat": "出片聊天局",
+    "friends_release": "发疯解压局",
+    "friends_city_quest": "城市副本局",
+    "hz_old_town_fireworks": "杭州老城烟火半日局",
+    "hz_canal_citywalk": "运河人文 Citywalk",
+    "hz_westlake_easy": "西湖轻松打卡局",
+    "hz_longwu_suburb": "龙坞茶山近郊局",
+    "hz_food_tour": "杭州特色美食巡游",
+    "hz_rainy_indoor": "雨天室内低耗局",
+    "couple_warmup": "轻升温不尴尬约会",
+    "couple_memory": "把普通周末过成小纪念日",
+    "couple_repair": "关系修复缓冲约会",
+    "couple_overnight": "夜宿放松约会"
+  },
+  "seed_keywords": {
+    "下班兄弟回血局": [
+      "KTV",
+      "烧烤",
+      "酒吧"
+    ],
+    "下班回血局": [
+      "KTV",
+      "烧烤",
+      "酒吧"
+    ],
+    "friends_recovery": [
+      "KTV",
+      "烧烤",
+      "酒吧"
+    ],
+    "发疯解压局": [
+      "KTV",
+      "拳击",
+      "酒吧",
+      "烧烤"
+    ],
+    "friends_release": [
+      "KTV",
+      "拳击",
+      "酒吧",
+      "烧烤"
+    ],
+    "低成本快乐局": [
+      "小吃",
+      "桌游",
+      "夜宵"
+    ],
+    "friends_budget": [
+      "小吃",
+      "桌游",
+      "夜宵"
+    ],
+    "出片聊天局": [
+      "展览",
+      "甜品",
+      "咖啡"
+    ],
+    "friends_photo_chat": [
+      "展览",
+      "甜品",
+      "咖啡"
+    ],
+    "城市副本局": [
+      "密室",
+      "剧本杀",
+      "酒吧"
+    ],
+    "friends_city_quest": [
+      "密室",
+      "剧本杀",
+      "酒吧"
+    ],
+    "杭州老城烟火半日局": [
+      "小吃",
+      "手作",
+      "夜景"
+    ],
+    "hz_old_town_fireworks": [
+      "小吃",
+      "手作",
+      "夜景"
+    ],
+    "运河人文 Citywalk": [
+      "博物馆",
+      "杭帮菜",
+      "夜景"
+    ],
+    "hz_canal_citywalk": [
+      "博物馆",
+      "杭帮菜",
+      "夜景"
+    ],
+    "西湖轻松打卡局": [
+      "茶馆",
+      "咖啡",
+      "西湖景点"
+    ],
+    "hz_westlake_easy": [
+      "茶馆",
+      "咖啡",
+      "西湖景点"
+    ],
+    "龙坞茶山近郊局": [
+      "茶馆",
+      "农家菜",
+      "茶山"
+    ],
+    "hz_longwu_suburb": [
+      "茶馆",
+      "农家菜",
+      "茶山"
+    ],
+    "杭州特色美食巡游": [
+      "小吃",
+      "杭帮菜",
+      "夜宵"
+    ],
+    "hz_food_tour": [
+      "小吃",
+      "杭帮菜",
+      "夜宵"
+    ],
+    "雨天室内低耗局": [
+      "商场",
+      "手作",
+      "茶馆"
+    ],
+    "hz_rainy_indoor": [
+      "商场",
+      "手作",
+      "茶馆"
+    ],
+    "轻升温不尴尬约会": [
+      "手作",
+      "甜品",
+      "咖啡"
+    ],
+    "couple_warmup": [
+      "手作",
+      "甜品",
+      "咖啡"
+    ],
+    "把普通周末过成小纪念日": [
+      "手作",
+      "西餐",
+      "花店"
+    ],
+    "couple_memory": [
+      "手作",
+      "西餐",
+      "花店"
+    ],
+    "关系修复缓冲约会": [
+      "茶馆",
+      "安静餐厅",
+      "散步"
+    ],
+    "couple_repair": [
+      "茶馆",
+      "安静餐厅",
+      "散步"
+    ],
+    "夜宿放松约会": [
+      "手作",
+      "西餐",
+      "酒店"
+    ],
+    "couple_overnight": [
+      "手作",
+      "西餐",
+      "酒店"
+    ]
+  },
+  "markdown_report_path": null,
+  "json_report_path": null
+}
