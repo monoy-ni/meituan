@@ -68,6 +68,9 @@ class GenerateItineraryRequest(BaseModel):
     crowd: str | None = None
     effort_preference: str | None = None
     weather: str | None = None
+    search_radius_km: float | None = Field(default=None, ge=0)
+    route_limit_km: float | None = Field(default=None, ge=0)
+    route_limit_minutes: int | None = Field(default=None, ge=0)
 
 
 class RefreshItineraryRequest(BaseModel):
@@ -110,6 +113,14 @@ def _request_payload(request: UserRequest | None) -> dict[str, Any] | None:
         "planning_effort": request.planning_effort,
         "travel_radius_km": request.travel_radius_km,
         "weather_sensitive": request.weather_sensitive,
+        "origin_name": request.origin_name,
+        "origin_address": request.origin_address,
+        "origin_amap_url": request.origin_amap_url,
+        "origin_longitude": request.origin_longitude,
+        "origin_latitude": request.origin_latitude,
+        "search_radius_km": request.search_radius_km,
+        "route_limit_km": request.route_limit_km,
+        "route_limit_minutes": request.route_limit_minutes,
     }
 
 
@@ -128,6 +139,12 @@ def _timeline_item_payload(item: TimelineItem) -> dict[str, Any]:
         "checkin_hint": item.checkin_hint,
         "transport_hint": item.transport_hint,
         "data_confidence": item.data_confidence,
+        "address": item.address,
+        "latitude": item.latitude,
+        "longitude": item.longitude,
+        "matched_keyword": item.matched_keyword,
+        "matched_keywords": item.matched_keywords,
+        "merchant_profile": item.merchant_profile,
     }
 
 
@@ -153,6 +170,8 @@ def _option_payload(option: PlanOption) -> dict[str, Any]:
         "effort_level": option.effort_level,
         "transport_summary": option.transport_summary,
         "data_confidence": option.data_confidence,
+        "search_keywords": option.search_keywords,
+        "route_plan": option.route_plan,
     }
 
 
@@ -301,6 +320,9 @@ def generate_itineraries(request: GenerateItineraryRequest) -> dict[str, Any]:
         experience_tags=request.experience_tags,
         effort_preference=request.effort_preference,
         weather=request.weather,
+        search_radius_km=request.search_radius_km,
+        route_limit_km=request.route_limit_km,
+        route_limit_minutes=request.route_limit_minutes,
     )
     return _response_payload(response)
 

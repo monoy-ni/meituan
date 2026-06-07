@@ -1,10 +1,20 @@
+import json
 import os
 import tempfile
 import unittest
 
 from activity_agent import ActivityPlanningAgent
 from activity_agent.config import AgentSettings, LLMSettings, StorageSettings, ToolSettings
-from activity_agent.domain import PayMode, TimelineType
+from activity_agent.data.theme_keyword_seeds import (
+    COUPLE_GOAL_KEYWORD_SEEDS,
+    COUPLE_STAGE_KEYWORD_SEEDS,
+    FRIENDS_THEME_KEYWORD_SEEDS,
+    THEME_KEYWORD_SEEDS,
+    keyword_seeds_for_theme,
+)
+from activity_agent.domain import PayMode, Scene, TimelineType
+from activity_agent.modules.theme_planner import COUPLE_THEMES, FRIENDS_THEMES
+from activity_agent.llm import LLMKeywordExpander
 from activity_agent.providers import AmapMapDataProvider, AmapWeatherProvider, HybridLiveDataProvider
 from activity_agent.storage.sqlite_repository import SQLiteRepository
 
@@ -12,6 +22,7 @@ from activity_agent.storage.sqlite_repository import SQLiteRepository
 class FakeAmapClient:
     def __init__(self) -> None:
         self.poi_calls = []
+        self.around_calls = []
         self.route_calls = []
 
     def search_pois(self, city: str, keywords: str, types: str = "", offset: int = 20, page: int = 1):
@@ -28,6 +39,43 @@ class FakeAmapClient:
                     "adname": "上城区",
                     "location": "120.1608,30.2557",
                     "biz_ext": {"cost": "88"},
+                }
+            ],
+        }
+
+    def search_pois_around(
+        self,
+        location: str,
+        radius_m: int,
+        keywords: str,
+        city: str = "",
+        types: str = "",
+        offset: int = 20,
+        page: int = 1,
+    ):
+        self.around_calls.append(
+            {
+                "location": location,
+                "radius_m": radius_m,
+                "keywords": keywords,
+                "city": city,
+                "types": types,
+                "offset": offset,
+                "page": page,
+            }
+        )
+        return {
+            "status": "1",
+            "pois": [
+                {
+                    "id": "B0FFAKE001",
+                    "name": "测试烧烤酒馆",
+                    "type": "餐饮服务;中餐厅;烧烤",
+                    "typecode": "050100",
+                    "address": "奥映世纪轩周边",
+                    "adname": "萧山区",
+                    "location": "120.2428,30.2430",
+                    "biz_ext": {"cost": "98"},
                 }
             ],
         }
@@ -61,6 +109,14 @@ class FakeAmapClient:
                 ]
             },
         }
+
+
+class FakeKeywordLLM:
+    def __init__(self, payload: str) -> None:
+        self.payload = payload
+
+    def complete(self, messages):
+        return self.payload
 
 
 class HangzhouItineraryTest(unittest.TestCase):
@@ -138,6 +194,61 @@ class HangzhouItineraryTest(unittest.TestCase):
             finally:
                 agent.close()
 
+    def test_theme_seed_maps_recovery_theme_to_tight_keywords(self) -> None:
+        self.assertEqual(THEME_KEYWORD_SEEDS["下班兄弟回血局"], ["KTV", "烧烤", "酒吧"])
+        self.assertEqual(FRIENDS_THEME_KEYWORD_SEEDS["下班兄弟回血局"], ["KTV", "烧烤", "酒吧"])
+
+    def test_friend_and_couple_keyword_seed_tables_are_scene_specific(self) -> None:
+        friend_theme = next(theme for theme in FRIENDS_THEMES if theme.id == "friends_recovery")
+        friend_request = self.agent.plan("下班兄弟回血局").request
+
+        self.assertEqual(keyword_seeds_for_theme(friend_theme, friend_request)[:3], ["KTV", "烧烤", "酒吧"])
+        self.assertNotIn("轻手作", keyword_seeds_for_theme(friend_theme, friend_request))
+
+        warmup_theme = next(theme for theme in COUPLE_THEMES if theme.id == "couple_warmup")
+        warmup_request = self.agent.plan("想约她第一次见面，怕尴尬", scene_hint=Scene.COUPLE).request
+        warmup_seeds = keyword_seeds_for_theme(warmup_theme, warmup_request)
+
+        self.assertEqual(COUPLE_STAGE_KEYWORD_SEEDS["暧昧/追求中"], ["咖啡", "甜品", "轻手作"])
+        self.assertTrue({"咖啡", "甜品", "轻手作"} <= set(warmup_seeds))
+
+        memory_theme = next(theme for theme in COUPLE_THEMES if theme.id == "couple_memory")
+        anniversary_request = self.agent.plan("纪念日想制造仪式感，安排约会", scene_hint=Scene.COUPLE).request
+        anniversary_seeds = keyword_seeds_for_theme(memory_theme, anniversary_request)
+
+        self.assertEqual(COUPLE_GOAL_KEYWORD_SEEDS["制造仪式感"], ["西餐", "花店", "蛋糕"])
+        self.assertTrue({"西餐", "花店", "蛋糕"} <= set(anniversary_seeds))
+
+    def test_llm_keyword_expander_accepts_related_keywords_and_rejects_unrelated(self) -> None:
+        request = self.agent.plan("下班兄弟回血局").request
+        valid_payload = json.dumps(
+            {
+                "keywords": [
+                    {"keyword": "量贩KTV", "intent_type": "activity", "reason": "唱歌回血"},
+                    {"keyword": "烤肉", "intent_type": "dining", "reason": "补充能量"},
+                    {"keyword": "精酿酒吧", "intent_type": "nightlife", "reason": "收尾放松"},
+                ]
+            },
+            ensure_ascii=False,
+        )
+        expanded = LLMKeywordExpander(FakeKeywordLLM(valid_payload)).expand(
+            "下班兄弟回血局",
+            ["KTV", "烧烤", "酒吧"],
+            request,
+        )
+        self.assertEqual([item.keyword for item in expanded], ["量贩KTV", "烤肉", "精酿酒吧"])
+
+        invalid_payload = json.dumps(
+            {"keywords": [{"keyword": "股票开户", "intent_type": "other", "reason": "无关"}]},
+            ensure_ascii=False,
+        )
+        fallback = LLMKeywordExpander(FakeKeywordLLM(invalid_payload)).expand(
+            "下班兄弟回血局",
+            ["KTV", "烧烤", "酒吧"],
+            request,
+        )
+        self.assertEqual([item.keyword for item in fallback], ["KTV", "烧烤", "酒吧"])
+
     def test_amap_route_and_weather_providers_use_live_payloads(self) -> None:
         repository = SQLiteRepository(":memory:")
         try:
@@ -175,6 +286,72 @@ class HangzhouItineraryTest(unittest.TestCase):
             self.assertEqual(len(live_supplies), 1)
             self.assertEqual(live_supplies[0].data_confidence, "live")
             self.assertEqual(live_supplies[0].source_id, "B0FFAKE001")
+        finally:
+            repository.close()
+
+    def test_theme_poi_sync_uses_amap_around_and_merges_matched_keywords(self) -> None:
+        repository = SQLiteRepository(":memory:")
+        try:
+            amap_client = FakeAmapClient()
+            settings = ToolSettings(data_mode="hybrid", amap_city="330100")
+            provider = HybridLiveDataProvider(repository, settings, amap_client=amap_client)
+
+            result = provider.sync_theme_pois(
+                city="hangzhou",
+                keywords=["烧烤", "酒吧"],
+                origin_longitude=120.2425,
+                origin_latitude=30.2426,
+                radius_km=5.0,
+            )
+            live_supplies = [supply for supply in provider.list_supplies("hangzhou") if supply.source == "amap_poi"]
+
+            self.assertEqual(result["status"], "live_synced")
+            self.assertEqual(len(amap_client.around_calls), 2)
+            self.assertEqual(amap_client.around_calls[0]["radius_m"], 5000)
+            self.assertEqual(amap_client.around_calls[0]["city"], "330100")
+            self.assertEqual(len(live_supplies), 1)
+            self.assertEqual(live_supplies[0].matched_keywords, ["烧烤", "酒吧"])
+            self.assertEqual(live_supplies[0].longitude, 120.2428)
+            self.assertEqual(live_supplies[0].latitude, 30.2430)
+        finally:
+            repository.close()
+
+    def test_agent_plan_attaches_keyword_trace_and_route_plan(self) -> None:
+        result = self.agent.plan("下班兄弟回血局")
+        option = result.options[0]
+
+        self.assertTrue(option.search_keywords)
+        self.assertEqual([item["keyword"] for item in option.search_keywords[:3]], ["KTV", "烧烤", "酒吧"])
+        self.assertEqual(option.route_plan["origin"]["name"], "奥映世纪轩")
+        self.assertEqual(option.route_plan["route_limit_km"], 6.0)
+        self.assertEqual(option.route_plan["route_limit_minutes"], 45)
+        self.assertEqual(len(option.route_plan["legs"]), len(option.timeline_items))
+
+    def test_couple_flow_uses_same_keyword_expansion_and_amap_around_search(self) -> None:
+        repository = SQLiteRepository(":memory:")
+        try:
+            amap_client = FakeAmapClient()
+            settings = AgentSettings(
+                llm=LLMSettings(api_key=None),
+                storage=StorageSettings(path=":memory:"),
+                tools=ToolSettings(data_mode="hybrid", map_provider="amap", amap_api_key="fake", amap_city="330100"),
+            )
+            agent = ActivityPlanningAgent(settings=settings, repository=repository)
+            provider = HybridLiveDataProvider(repository, settings.tools, amap_client=amap_client)
+            agent.local_data_provider = provider
+            agent.map_provider = AmapMapDataProvider(amap_client, repository)
+            agent._refresh_runtime_catalog("hangzhou")
+
+            result = agent.plan("想约她第一次见面，怕尴尬，周边5公里", scene_hint=Scene.COUPLE)
+            keywords = [call["keywords"] for call in amap_client.around_calls]
+
+            self.assertEqual(result.request.scene, Scene.COUPLE)
+            self.assertTrue({"咖啡", "甜品", "轻手作"} <= set(keywords))
+            self.assertTrue(all(call["location"] == "120.2425,30.2426" for call in amap_client.around_calls))
+            self.assertTrue(all(call["radius_m"] == 5000 for call in amap_client.around_calls))
+            self.assertTrue(all(call["city"] == "330100" for call in amap_client.around_calls))
+            self.assertTrue(result.options[0].search_keywords)
+            self.assertTrue(result.options[0].route_plan["legs"])
         finally:
             repository.close()
 

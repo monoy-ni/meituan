@@ -5,6 +5,7 @@ import json
 import math
 import re
 import time
+from dataclasses import replace
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -123,6 +124,39 @@ class AmapWebServiceClient:
         )
         self._ensure_ok(payload)
         return payload
+
+    def search_pois_around(
+        self,
+        location: str,
+        radius_m: int,
+        keywords: str,
+        types: str = "",
+        offset: int = 20,
+        page: int = 1,
+        city: str = "",
+    ) -> dict[str, Any]:
+        payload = self._get(
+            "/place/around",
+            {
+                "location": location,
+                "radius": radius_m,
+                "keywords": keywords,
+                "city": city,
+                "types": types,
+                "offset": offset,
+                "page": page,
+                "extensions": "all",
+                "sortrule": "distance",
+                "output": "JSON",
+            },
+        )
+        self._ensure_ok(payload)
+        return payload
+
+    def resolve_location(self, city: str, keyword: str) -> dict[str, Any] | None:
+        payload = self.search_pois(city=city, keywords=keyword, offset=1, page=1)
+        pois = payload.get("pois") or []
+        return pois[0] if pois and isinstance(pois[0], dict) else None
 
     def weather(self, city: str, extensions: str = "base") -> dict[str, Any]:
         payload = self._get(
@@ -378,6 +412,80 @@ class HybridLiveDataProvider(SeedLocalDataProvider):
             "message": _sync_message(status, sources, errors),
         }
 
+    def sync_theme_pois(
+        self,
+        city: str,
+        keywords: list[str],
+        origin_longitude: float | None,
+        origin_latitude: float | None,
+        radius_km: float = 5.0,
+    ) -> dict[str, Any]:
+        started = time.perf_counter()
+        errors: dict[str, str] = {}
+        sources: dict[str, Any] = {}
+        supplies_by_id: dict[str, MerchantSupply] = {}
+
+        if self.amap_client:
+            location = _format_location(origin_longitude, origin_latitude)
+            radius_m = int(max(1.0, radius_km) * 1000)
+            for keyword in keywords:
+                try:
+                    if location:
+                        payload = self.amap_client.search_pois_around(
+                            location=location,
+                            radius_m=radius_m,
+                            keywords=keyword,
+                            city=_city_code(city, self.settings.amap_city),
+                            types=self.settings.amap_poi_types,
+                            offset=20,
+                            page=1,
+                        )
+                    else:
+                        payload = self.amap_client.search_pois(
+                            city=_city_code(city, self.settings.amap_city),
+                            keywords=keyword,
+                            types=self.settings.amap_poi_types,
+                            offset=20,
+                            page=1,
+                        )
+                except ProviderAPIError as exc:
+                    errors[f"amap_poi:{keyword}"] = str(exc)
+                    continue
+
+                for poi in payload.get("pois") or []:
+                    if not isinstance(poi, dict):
+                        continue
+                    supply = _amap_poi_to_supply(poi, keyword, city)
+                    current = supplies_by_id.get(supply.id)
+                    supplies_by_id[supply.id] = _merge_supply_keyword(current, supply, keyword) if current else supply
+        else:
+            errors["amap_poi"] = "AMAP_API_KEY is not configured."
+
+        amap_supplies = list(supplies_by_id.values())[:30]
+        if amap_supplies:
+            self.repository.upsert_supplies(amap_supplies, "amap_theme_poi")
+        sources["amap_poi"] = {"places": len(amap_supplies), "configured": self.amap_client is not None}
+
+        hangzhou_supplies = self._sync_hangzhou_open_data(city, keywords, area=None, errors=errors)[:30]
+        if hangzhou_supplies:
+            self.repository.upsert_supplies(hangzhou_supplies, "hangzhou_open_data")
+        sources["hangzhou_open_data"] = {
+            "places": len(hangzhou_supplies),
+            "configured": self.hangzhou_client is not None,
+        }
+
+        live_places = len(amap_supplies) + len(hangzhou_supplies)
+        status = "live_synced" if live_places else ("degraded_to_seed" if errors else "empty")
+        if live_places and errors:
+            status = "partially_synced"
+        return {
+            "status": status,
+            "live_places": live_places,
+            "sources": sources,
+            "errors": errors,
+            "duration_ms": int((time.perf_counter() - started) * 1000),
+        }
+
     def _sync_amap_pois(
         self,
         city: str,
@@ -389,8 +497,7 @@ class HybridLiveDataProvider(SeedLocalDataProvider):
             errors["amap_poi"] = "AMAP_API_KEY is not configured."
             return []
 
-        supplies: list[MerchantSupply] = []
-        seen: set[str] = set()
+        supplies_by_id: dict[str, MerchantSupply] = {}
         for keyword in keywords or list(DEFAULT_AMAP_KEYWORDS):
             try:
                 payload = self.amap_client.search_pois(
@@ -409,11 +516,9 @@ class HybridLiveDataProvider(SeedLocalDataProvider):
                 supply = _amap_poi_to_supply(poi, keyword, city)
                 if area and supply.area_cluster != area:
                     continue
-                if supply.id in seen:
-                    continue
-                seen.add(supply.id)
-                supplies.append(supply)
-        return supplies
+                current = supplies_by_id.get(supply.id)
+                supplies_by_id[supply.id] = _merge_supply_keyword(current, supply, keyword) if current else supply
+        return list(supplies_by_id.values())
 
     def _sync_hangzhou_open_data(
         self,
@@ -561,6 +666,7 @@ def _amap_poi_to_supply(poi: dict[str, Any], keyword: str, city: str) -> Merchan
         local_flavor_tags=tags[:4],
         transport_hint="Route refresh can use AMAP directions when this POI is part of a selected plan.",
         data_confidence="live",
+        matched_keywords=[keyword],
     )
 
 
@@ -615,6 +721,21 @@ def _parse_location(value: str) -> tuple[float, float] | None:
         return float(lng_text), float(lat_text)
     except ValueError:
         return None
+
+
+def _format_location(longitude: float | None, latitude: float | None) -> str:
+    if longitude is None or latitude is None:
+        return ""
+    return f"{longitude},{latitude}"
+
+
+def _merge_supply_keyword(current: MerchantSupply | None, incoming: MerchantSupply, keyword: str) -> MerchantSupply:
+    if current is None:
+        return incoming
+    keywords = list(dict.fromkeys([*current.matched_keywords, *incoming.matched_keywords, keyword]))
+    tags = list(dict.fromkeys([*current.tags, *incoming.tags]))
+    local_tags = list(dict.fromkeys([*current.local_flavor_tags, *incoming.local_flavor_tags]))
+    return replace(current, matched_keywords=keywords, tags=tags[:8], local_flavor_tags=local_tags[:8])
 
 
 def _infer_area_cluster(name: str, address: str, location: tuple[float, float] | None) -> str:

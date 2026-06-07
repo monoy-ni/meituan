@@ -34,6 +34,10 @@ class UserUnderstanding:
     budget: Optional[int] = None
     time_window: Optional[str] = None
     location: Optional[str] = None
+    search_radius_km: Optional[float] = None
+    route_limit_km: Optional[float] = None
+    route_limit_minutes: Optional[int] = None
+    defaults_accepted: bool = False
     constraints: dict[str, bool] = field(default_factory=dict)
     confidence: float = 0.6  # 规则解析的默认置信度
 
@@ -106,6 +110,11 @@ class DialogueManager:
   "mood_tags": ["回血", "放松", "热闹", "疯玩", "拍照", "省钱", "安静", "浪漫"],
   "budget": 整数，人均预算，没有提到就是null,
   "time": "今晚"|"明晚"|"周末"|"周末下午"|"周六"等,
+  "location": "集合点/出发点名称，没有提到就是null",
+  "search_radius_km": 数字，用户要求的周边搜索半径公里数，没有提到就是null,
+  "route_limit_km": 数字，用户要求整体路线控制在多少公里内，没有提到就是null,
+  "route_limit_minutes": 整数，用户要求整体路线控制在多少分钟内，没有提到就是null,
+  "defaults_accepted": true/false，用户是否表示默认/都行/不用改,
   "constraints": {
     "no_alcohol": true/false,
     "indoor_only": true/false,
@@ -141,6 +150,11 @@ class DialogueManager:
                 understanding.mood_tags = result.get("mood_tags", [])
                 understanding.budget = result.get("budget")
                 understanding.time_window = result.get("time")
+                understanding.location = result.get("location")
+                understanding.search_radius_km = self._safe_float(result.get("search_radius_km"))
+                understanding.route_limit_km = self._safe_float(result.get("route_limit_km"))
+                understanding.route_limit_minutes = self._safe_int(result.get("route_limit_minutes"))
+                understanding.defaults_accepted = bool(result.get("defaults_accepted", False))
                 understanding.constraints = result.get("constraints", {})
                 understanding.confidence = result.get("confidence", 0.5)
         except Exception:
@@ -206,6 +220,11 @@ class DialogueManager:
             understanding.budget = int(budget_match.group(1))
 
         understanding.time_window = self._parse_time_window_with_local_time(text)
+        understanding.location = self._parse_location(text)
+        understanding.search_radius_km = self._parse_search_radius(text)
+        understanding.route_limit_km = self._parse_route_limit_km(text)
+        understanding.route_limit_minutes = self._parse_route_limit_minutes(text)
+        understanding.defaults_accepted = any(word in text for word in ["默认", "都行", "不用改", "按你说的", "就这样", "可以"])
 
         understanding.constraints = {
             "no_alcohol": "不喝酒" in text or "不要酒" in text,
@@ -216,6 +235,18 @@ class DialogueManager:
         }
 
         return understanding
+
+    def _safe_float(self, value: object) -> float | None:
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    def _safe_int(self, value: object) -> int | None:
+        try:
+            return int(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
 
     def _apply_scene_context(
         self,
@@ -283,6 +314,37 @@ class DialogueManager:
             return f"selected_day 18:30-23:30"
         return None
 
+    def _parse_location(self, text: str) -> Optional[str]:
+        if "奥映世纪轩" in text:
+            return "奥映世纪轩"
+        import re
+        match = re.search(r'(?:在|从|离|集合点|出发点|靠近)([\u4e00-\u9fa5A-Za-z0-9·（）()]{2,18})(?:附近|出发|集合|周边|这边)?', text)
+        if match:
+            return self._clean_location_name(match.group(1))
+        return None
+
+    def _clean_location_name(self, value: str) -> str:
+        cleaned = str(value or "").strip("，,。 ")
+        for suffix in ("附近出发", "附近集合", "附近", "出发", "周边", "这边", "集合"):
+            while cleaned.endswith(suffix):
+                cleaned = cleaned[: -len(suffix)].strip("，,。 ")
+        return cleaned
+
+    def _parse_search_radius(self, text: str) -> Optional[float]:
+        import re
+        match = re.search(r"(?:周边|附近|半径|搜索范围)\s*(\d+(?:\.\d+)?)\s*公里", text)
+        return float(match.group(1)) if match else None
+
+    def _parse_route_limit_km(self, text: str) -> Optional[float]:
+        import re
+        match = re.search(r"(?:路线|路径|全程|总路程|路程)\D{0,8}(\d+(?:\.\d+)?)\s*公里", text)
+        return float(match.group(1)) if match else None
+
+    def _parse_route_limit_minutes(self, text: str) -> Optional[int]:
+        import re
+        match = re.search(r"(\d{1,3})\s*分钟", text)
+        return int(match.group(1)) if match else None
+
     def _check_termination_conditions(self, ctx: DialogueContext) -> Optional[str]:
         """检查对话是否应该终止"""
         # 1. 检查会话超时
@@ -343,6 +405,7 @@ class DialogueManager:
                 info["budget"] = understanding.budget
             if understanding.time_window and "time" not in info:
                 info["time"] = understanding.time_window
+            self._merge_location_distance(info, understanding)
 
             if "mood" not in info:
                 return "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？", True
@@ -350,6 +413,8 @@ class DialogueManager:
                 return "人均预算大概多少呢？100-200、200-300，还是更高一些？", True
             if "time" not in info:
                 return "安排在什么时候呢？今晚、明晚，还是周末？", True
+            if not self._has_location_distance(info):
+                return "集合点默认奥映世纪轩；搜索范围默认周边 5km，整体路线目标 6km 或 45min 内。要改集合点、距离或路线长度吗？", True
 
             ctx.state = DialogueState.READY_TO_PLAN
             return "好的！我已经了解得差不多了，这就为你生成几个方案。", False
@@ -362,6 +427,7 @@ class DialogueManager:
                 info["budget"] = understanding.budget
             if understanding.time_window and "time" not in info:
                 info["time"] = understanding.time_window
+            self._merge_location_distance(info, understanding)
 
             if "relationship_stage" not in info:
                 return "这次约会想安排成什么样的感觉呢？是轻松自然一些，还是想制造些浪漫？", True
@@ -369,6 +435,8 @@ class DialogueManager:
                 return "人均预算大概多少呢？我可以根据预算调整推荐。", True
             if "time" not in info:
                 return "安排在什么时候比较好呢？周末下午，还是晚上？", True
+            if not self._has_location_distance(info):
+                return "集合点默认奥映世纪轩；搜索范围默认周边 5km，整体路线目标 6km 或 45min 内。要改集合点、距离或路线长度吗？", True
 
             ctx.state = DialogueState.READY_TO_PLAN
             return "好的，我懂了！这就为你准备几个合适的方案。", False
@@ -401,6 +469,28 @@ class DialogueManager:
             return "正在处理预订...", False
 
         return "我理解了，让我继续为你规划。", False
+
+    def _merge_location_distance(self, info: dict[str, Any], understanding: UserUnderstanding) -> None:
+        if understanding.location and "location" not in info:
+            info["location"] = understanding.location
+        if understanding.search_radius_km and "search_radius_km" not in info:
+            info["search_radius_km"] = understanding.search_radius_km
+        if understanding.route_limit_km and "route_limit_km" not in info:
+            info["route_limit_km"] = understanding.route_limit_km
+        if understanding.route_limit_minutes and "route_limit_minutes" not in info:
+            info["route_limit_minutes"] = understanding.route_limit_minutes
+        if understanding.defaults_accepted:
+            info.setdefault("location", "奥映世纪轩")
+            info.setdefault("search_radius_km", 5.0)
+            info.setdefault("route_limit_km", 6.0)
+            info.setdefault("route_limit_minutes", 45)
+
+    def _has_location_distance(self, info: dict[str, Any]) -> bool:
+        return bool(
+            info.get("location")
+            and info.get("search_radius_km")
+            and (info.get("route_limit_km") or info.get("route_limit_minutes"))
+        )
 
     def _is_adjustment_request(self, text: str) -> bool:
         return any(word in text for word in ["更近", "便宜", "少走路", "改室内", "室内", "加拍照", "拍照", "换", "不要", "太贵", "太累"])
@@ -469,6 +559,8 @@ class DialogueManager:
                 return "ask_budget"
             if "time" not in info:
                 return "ask_time"
+            if not self._has_location_distance(info):
+                return "ask_location_distance"
             return "generate_options"
         if ctx.state == DialogueState.COLLECTING_COUPLE_CONTEXT:
             if "relationship_stage" not in info:
@@ -477,6 +569,8 @@ class DialogueManager:
                 return "ask_budget"
             if "time" not in info:
                 return "ask_time"
+            if not self._has_location_distance(info):
+                return "ask_location_distance"
             return "generate_options"
         if ctx.state == DialogueState.REFINING_DETAILS:
             return "regenerate_options"

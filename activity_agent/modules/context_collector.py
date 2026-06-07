@@ -150,14 +150,22 @@ def _parse_time_window(text: str, scene: Scene) -> str | None:
 
 
 def _parse_location(text: str) -> str | None:
-    if "杭州" in text or "杭城" in text or any(word in text for word in ["西湖", "河坊街", "南宋御街", "运河", "桥西", "龙坞", "西溪", "湘湖", "良渚"]):
-        return "hangzhou"
     match = re.search(r'(?:在|从|离|附近|靠近)([\u4e00-\u9fa5A-Za-z0-9]{2,12})(?:附近|出发|周边|这边)?', text)
     if match:
-        return match.group(1)
+        return _clean_location_name(match.group(1))
+    if "杭州" in text or "杭城" in text or any(word in text for word in ["西湖", "河坊街", "南宋御街", "运河", "桥西", "龙坞", "西溪", "湘湖", "良渚"]):
+        return "hangzhou"
     if "别太远" in text or "附近" in text:
         return "current_location"
     return None
+
+
+def _clean_location_name(value: str) -> str:
+    cleaned = str(value or "").strip("，,。 ")
+    for suffix in ("附近出发", "附近集合", "附近", "出发", "周边", "这边", "集合"):
+        while cleaned.endswith(suffix):
+            cleaned = cleaned[: -len(suffix)].strip("，,。 ")
+    return cleaned
 
 
 def _parse_mood_tags(text: str) -> list[str]:
@@ -231,7 +239,7 @@ class ContextCollector:
             or ("weekend 15:00-22:30" if scene == Scene.COUPLE else "today 18:30-23:30"),
             location_anchor=(partial_request.location_anchor if partial_request else None)
             or _parse_location(normalized)
-            or "current_location",
+            or "奥映世纪轩",
             budget_per_person=(partial_request.budget_per_person if partial_request else None)
             or parsed_budget
             or default_budget,
@@ -256,9 +264,17 @@ class ContextCollector:
             travel_radius_km=(
                 partial_request.travel_radius_km
                 if partial_request
-                else (12.0 if any(tag in parsed_experience_tags for tag in ["近郊山水", "茶山", "良渚"]) else 4.0)
+                else (12.0 if any(tag in parsed_experience_tags for tag in ["近郊山水", "茶山", "良渚"]) else 5.0)
             ),
             weather_sensitive=("下雨" in normalized or "雨天" in normalized or constraints["indoor_only"]),
+            origin_name=(partial_request.origin_name if partial_request else None) or "奥映世纪轩",
+            origin_address=(partial_request.origin_address if partial_request else None) or "民祥路与平澜路交汇处(地铁6号线丰北站C出口)",
+            origin_amap_url=(partial_request.origin_amap_url if partial_request else None) or "https://surl.amap.com/4sRsg3c1oa7b",
+            origin_longitude=(partial_request.origin_longitude if partial_request else None) or 120.2425,
+            origin_latitude=(partial_request.origin_latitude if partial_request else None) or 30.2426,
+            search_radius_km=(partial_request.search_radius_km if partial_request else None) or 5.0,
+            route_limit_km=(partial_request.route_limit_km if partial_request else None) or 6.0,
+            route_limit_minutes=(partial_request.route_limit_minutes if partial_request else None) or 45,
         )
 
         if scene == Scene.COUPLE:
@@ -266,6 +282,16 @@ class ContextCollector:
                 request,
                 relationship_stage=_first_match(normalized, RELATIONSHIP_STAGE_DICTIONARY) or request.relationship_stage,
                 relationship_goal=_first_match(normalized, RELATIONSHIP_GOAL_DICTIONARY) or request.relationship_goal,
+            )
+
+        if request.location_anchor not in {"奥映世纪轩", "hangzhou", "current_location"}:
+            request = replace(
+                request,
+                origin_name=request.location_anchor,
+                origin_address=request.location_anchor,
+                origin_amap_url="",
+                origin_longitude=None,
+                origin_latitude=None,
             )
 
         if scene == Scene.FRIENDS and not request.mood_tags:
@@ -306,8 +332,8 @@ class ContextCollector:
             assumptions.append(f"未给预算，先按人均 {request.budget_per_person} 元生成。")
         if "人" not in text and request.scene == Scene.FRIENDS:
             assumptions.append(f"未给人数，先按 {request.party_size} 人朋友局估算。")
-        if request.location_anchor == "current_location":
-            assumptions.append("未给具体商圈，先按当前位置 3km 内优先。")
+        if request.location_anchor in {"current_location", "奥映世纪轩"}:
+            assumptions.append("未给集合点，默认从奥映世纪轩出发，按周边 5km 和 6km/45min 路线目标处理。")
         if request.location_anchor == "hangzhou":
             assumptions.append("已按杭州本地主题局生成，外部地图/天气/库存为 seed 估算。")
         if request.planning_effort == "zero_effort":

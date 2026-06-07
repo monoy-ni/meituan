@@ -465,6 +465,14 @@ def _request_from_dict(data: dict[str, Any]) -> UserRequest:
         planning_effort=data.get("planning_effort", "guided"),
         travel_radius_km=float(data.get("travel_radius_km", 3.0)),
         weather_sensitive=bool(data.get("weather_sensitive", False)),
+        origin_name=data.get("origin_name", "奥映世纪轩"),
+        origin_address=data.get("origin_address", "民祥路与平澜路交汇处(地铁6号线丰北站C出口)"),
+        origin_amap_url=data.get("origin_amap_url", "https://surl.amap.com/4sRsg3c1oa7b"),
+        origin_longitude=data.get("origin_longitude", 120.2425),
+        origin_latitude=data.get("origin_latitude", 30.2426),
+        search_radius_km=float(data.get("search_radius_km", 5.0)),
+        route_limit_km=float(data.get("route_limit_km", 6.0)),
+        route_limit_minutes=int(data.get("route_limit_minutes", 45)),
     )
 
 
@@ -495,6 +503,8 @@ def _merchant_supply_from_dict(data: dict[str, Any]) -> MerchantSupply:
         local_flavor_tags=list(data.get("local_flavor_tags", [])),
         transport_hint=data.get("transport_hint", ""),
         data_confidence=data.get("data_confidence", "seed"),
+        matched_keywords=list(data.get("matched_keywords", [])),
+        merchant_profile=dict(data.get("merchant_profile", {})),
     )
 
 
@@ -513,6 +523,12 @@ def _timeline_item_from_dict(data: dict[str, Any]) -> TimelineItem:
         checkin_hint=data.get("checkin_hint", ""),
         transport_hint=data.get("transport_hint", ""),
         data_confidence=data.get("data_confidence", "seed"),
+        address=data.get("address", ""),
+        latitude=data.get("latitude"),
+        longitude=data.get("longitude"),
+        matched_keyword=data.get("matched_keyword", ""),
+        matched_keywords=list(data.get("matched_keywords", [])),
+        merchant_profile=dict(data.get("merchant_profile", {})),
     )
 
 
@@ -538,6 +554,8 @@ def _plan_option_from_dict(data: dict[str, Any]) -> PlanOption:
         effort_level=data.get("effort_level", "中"),
         transport_summary=data.get("transport_summary", ""),
         data_confidence=data.get("data_confidence", "seed"),
+        search_keywords=list(data.get("search_keywords", [])),
+        route_plan=dict(data.get("route_plan", {})),
     )
 
 
