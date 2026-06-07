@@ -2,6 +2,63 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+
+_DOTENV_LOADED = False
+
+
+def _clean_dotenv_value(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        value = value[1:-1]
+    return value
+
+
+def load_dotenv_file(path: str | os.PathLike[str], *, override: bool = False) -> bool:
+    env_path = Path(path)
+    if not env_path.is_file():
+        return False
+
+    with env_path.open("r", encoding="utf-8") as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("export "):
+                line = line[len("export "):].strip()
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            if not key or key.startswith("#"):
+                continue
+            if override or key not in os.environ:
+                os.environ[key] = _clean_dotenv_value(value)
+
+    return True
+
+
+def load_project_dotenv() -> None:
+    global _DOTENV_LOADED
+    if _DOTENV_LOADED:
+        return
+
+    _DOTENV_LOADED = True
+    explicit_env_file = os.getenv("ACTIVITY_AGENT_ENV_FILE")
+    if explicit_env_file:
+        load_dotenv_file(explicit_env_file)
+        return
+
+    project_root = Path(__file__).resolve().parents[1]
+    candidates = [Path.cwd() / ".env", project_root / ".env"]
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        load_dotenv_file(resolved)
 
 
 @dataclass(frozen=True)
@@ -14,6 +71,7 @@ class LLMSettings:
 
     @classmethod
     def from_env(cls) -> "LLMSettings":
+        load_project_dotenv()
         return cls(
             base_url=os.getenv("ACTIVITY_AGENT_LLM_BASE_URL", cls.base_url),
             api_key=os.getenv("ACTIVITY_AGENT_LLM_API_KEY") or None,
@@ -29,6 +87,7 @@ class StorageSettings:
 
     @classmethod
     def from_env(cls) -> "StorageSettings":
+        load_project_dotenv()
         return cls(path=os.getenv("ACTIVITY_AGENT_STORAGE_PATH", cls.path))
 
 
@@ -51,6 +110,7 @@ class ToolSettings:
 
     @classmethod
     def from_env(cls) -> "ToolSettings":
+        load_project_dotenv()
         return cls(
             mode=os.getenv("ACTIVITY_AGENT_TOOL_MODE", cls.mode),
             data_mode=os.getenv("ACTIVITY_AGENT_DATA_MODE", cls.data_mode),
@@ -81,6 +141,7 @@ class AgentSettings:
 
     @classmethod
     def from_env(cls) -> "AgentSettings":
+        load_project_dotenv()
         return cls(
             llm=LLMSettings.from_env(),
             storage=StorageSettings.from_env(),
