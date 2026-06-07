@@ -9,7 +9,18 @@
 
 ## 运行方式
 
-从项目根目录执行：
+推荐先运行诊断报告入口：
+
+```powershell
+python -m tests.acceptance_matrix.run_acceptance_validation
+```
+
+运行后会生成：
+
+- `reports/acceptance_matrix_report.md`
+- `reports/acceptance_matrix_report.json`
+
+如果只需要跑 unittest，从项目根目录执行：
 
 ```powershell
 python -m unittest discover tests/acceptance_matrix
@@ -44,3 +55,5 @@ python -m unittest discover tests/acceptance_matrix/scenario_08_mock_booking_ord
 ## 当前补齐情况
 
 已有回归测试覆盖了大部分能力。本次新增的明确缺口是高德 `ip_location()` client 封装及其 mock 测试，避免“IP 定位”只停留在文档要求里。
+
+完整使用说明见 [`../../docs/acceptance_matrix_validation_guide.md`](../../docs/acceptance_matrix_validation_guide.md)。

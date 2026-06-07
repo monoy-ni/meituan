@@ -25,7 +25,10 @@ python -m tests.run_theme_confirmation_validation
 # 位置确认专项验证
 python -m tests.run_location_confirmation_test
 
-# 8 项业务验收测试矩阵
+# 8 项业务验收测试矩阵，生成诊断报告
+python -m tests.acceptance_matrix.run_acceptance_validation
+
+# 8 项业务验收测试矩阵 unittest
 python -m unittest discover tests/acceptance_matrix
 ```
 
@@ -33,7 +36,7 @@ python -m unittest discover tests/acceptance_matrix
 
 | 文件 | 类型 | 说明 |
 | --- | --- | --- |
-| [`acceptance_matrix/`](acceptance_matrix/) | 验收矩阵 | 8 项业务验收测试集中目录，每项一个子目录，包含 README 和 test 文件 |
+| [`acceptance_matrix/`](acceptance_matrix/) | 验收矩阵 | 8 项业务验收测试集中目录，每项一个子目录，并带 harness/cases/runner/report |
 | [`test_activity_agent.py`](test_activity_agent.py) | unittest | Agent 主链路：方案、反馈、调整、预约草稿、复盘 |
 | [`test_activity_agent.md`](test_activity_agent.md) | 说明 | `test_activity_agent.py` 的覆盖范围、关键用例和通过标准 |
 | [`test_guided_conversation.py`](test_guided_conversation.py) | unittest | 多轮引导式对话、对话状态、上下文追加、再规划 |
@@ -60,6 +63,7 @@ python -m unittest discover tests/acceptance_matrix
 | 文档 | 说明 |
 | --- | --- |
 | [`../docs/testing.md`](../docs/testing.md) | 测试说明总览和运行策略 |
+| [`../docs/acceptance_matrix_validation_guide.md`](../docs/acceptance_matrix_validation_guide.md) | 8 项业务验收矩阵的报告型验证使用说明 |
 | [`../docs/theme_confirmation_validation_guide.md`](../docs/theme_confirmation_validation_guide.md) | 主题确认专项验证完整使用说明 |
 | [`../docs/location_confirmation_validation_guide.md`](../docs/location_confirmation_validation_guide.md) | 位置确认与高德集成专项验证完整使用说明 |
 | [`../theme-confirmation-test.md`](../theme-confirmation-test.md) | 主题确认节点手工验收、接口级测试和前端联调检查 |

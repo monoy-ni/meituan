@@ -36,15 +36,19 @@ python -m tests.run_theme_confirmation_validation
 # 位置确认专项验证，生成 reports/location_confirmation_report.*
 python -m tests.run_location_confirmation_test
 
-# 8 项业务验收测试矩阵
+# 8 项业务验收测试矩阵，生成 reports/acceptance_matrix_report.*
+python -m tests.acceptance_matrix.run_acceptance_validation
+
+# 8 项验收矩阵的 unittest 入口
 python -m unittest discover tests/acceptance_matrix
 ```
 
 ## 8 项业务验收测试矩阵
 
 集中目录：[`../tests/acceptance_matrix/`](../tests/acceptance_matrix/)
+完整指南：[`acceptance_matrix_validation_guide.md`](acceptance_matrix_validation_guide.md)
 
-这组测试按当前产品验收点拆成 8 个子目录，每个子目录都有 `README.md` 和 `test_*.py`。它不替代原有单元/回归测试，而是给业务验收一个集中入口。
+这组测试按当前产品验收点拆成 8 个子目录，每个子目录都有 `README.md` 和 `test_*.py`。同时提供 `acceptance_validation_harness.py`、`acceptance_validation_cases.py` 和 `run_acceptance_validation.py`，运行后会生成可定位问题的 Markdown / JSON 报告。
 
 | 序号 | 子目录 | 验收点 | 单独运行 |
 | --- | --- | --- | --- |
@@ -116,7 +120,7 @@ python -m unittest discover tests/acceptance_matrix
 | 改体验卡、设计器、前端 option payload | `tests.test_experience_cards` |
 | 改杭州主题、关键词种子、高德 provider、路线/天气/POI | `tests.test_hangzhou_itineraries`、`tests.test_amap_poi_range` |
 | 改位置解析、默认集合点、高德 URL/坐标 | `tests.test_location_confirmation`、必要时跑位置确认专项验证 |
-| 改 8 个业务验收点任一链路 | `python -m unittest discover tests/acceptance_matrix` |
+| 改 8 个业务验收点任一链路 | `python -m tests.acceptance_matrix.run_acceptance_validation` |
 | 改配置、LLM 客户端、SQLite 存储、session 恢复 | `tests.test_mvp_sdk` |
 | 发布或合并前做回归 | `python -m unittest discover tests`，再按风险追加两个专项验证入口 |
 

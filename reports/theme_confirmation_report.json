@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-06-07T18:51:58",
-  "seed_file_path": "C:\\Users\\lenovo\\Desktop\\meituan2\\activity_agent\\data\\theme_keyword_seeds.py",
+  "generated_at": "2026-06-07T21:09:36",
+  "seed_file_path": "D:\\meituan agent\\activity_agent\\data\\theme_keyword_seeds.py",
   "metrics": {
     "total_cases": 10,
     "passed_cases": 0,
@@ -8,8 +8,8 @@
     "case_pass_rate": 0.0,
     "theme_accuracy": 0.0,
     "relationship_stage_accuracy": 0.0,
-    "exception_case_count": 0,
-    "avg_turns_per_case": 5.1
+    "exception_case_count": 10,
+    "avg_turns_per_case": 3.0
   },
   "case_results": [
     {
@@ -29,7 +29,7 @@
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 4406
+          "duration_ms": 3147
         },
         {
           "turn_index": 2,
@@ -41,43 +41,31 @@
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 4420
+          "duration_ms": 3316
         },
         {
           "turn_index": 3,
           "user_input": "人均220",
           "scene_hint": null,
-          "assistant_output": "安排在什么时候呢？今晚、明晚，还是周末？",
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
           "conversation_state": "collecting_friends_context",
-          "conversation_next_step": "ask_time",
+          "conversation_next_step": "ask_mood",
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 2876
+          "duration_ms": 4689
         },
         {
           "turn_index": 4,
           "user_input": "今晚",
           "scene_hint": null,
-          "assistant_output": "安排在什么时候呢？今晚、明晚，还是周末？",
+          "assistant_output": "集合点默认奥映世纪轩；搜索范围默认周边 5km，整体路线目标 6km 或 45min 内。要改集合点、距离或路线长度吗？",
           "conversation_state": "collecting_friends_context",
-          "conversation_next_step": "ask_time",
+          "conversation_next_step": "ask_location_distance",
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 328
-        },
-        {
-          "turn_index": 5,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "安排在什么时候呢？今晚、明晚，还是周末？",
-          "conversation_state": "collecting_friends_context",
-          "conversation_next_step": "ask_time",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 363
+          "duration_ms": 4044
         }
       ],
       "validations": [
@@ -114,10 +102,10 @@
       "final_relationship_stage": null,
       "final_top_theme_name": null,
       "final_state": "collecting_friends_context",
-      "final_next_step": "ask_time",
+      "final_next_step": "ask_location_distance",
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "DialogueTurnTimeoutError",
+      "exception_message": "Turn timed out after 20.00s: 默认"
     },
     {
       "case_id": "TC-02",
@@ -125,74 +113,13 @@
       "category": "信息明确",
       "passed": false,
       "seed_basis": "friends_photo_chat -> aliases=['friends_photo_chat', '出片聊天局'], keywords=['展览', '甜品', '咖啡']",
-      "transcript": [
-        {
-          "turn_index": 1,
-          "user_input": "和朋友出去玩",
-          "scene_hint": null,
-          "assistant_output": "好的！是想和朋友聚聚，还是想安排约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 324
-        },
-        {
-          "turn_index": 2,
-          "user_input": "想拍照出片，顺便轻松聊聊天",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 393
-        },
-        {
-          "turn_index": 3,
-          "user_input": "人均260",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 467
-        },
-        {
-          "turn_index": 4,
-          "user_input": "周末",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 378
-        },
-        {
-          "turn_index": 5,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 333
-        }
-      ],
+      "transcript": [],
       "validations": [
         {
           "name": "scene",
-          "passed": true,
+          "passed": false,
           "expected": "friends",
-          "actual": "friends",
+          "actual": null,
           "details": ""
         },
         {
@@ -206,7 +133,7 @@
           "name": "final_state",
           "passed": false,
           "expected": "awaiting_selection",
-          "actual": "identifying_scene",
+          "actual": null,
           "details": ""
         },
         {
@@ -217,14 +144,14 @@
           "details": ""
         }
       ],
-      "final_scene": "friends",
+      "final_scene": null,
       "final_relationship_stage": null,
       "final_top_theme_name": null,
-      "final_state": "identifying_scene",
-      "final_next_step": "choose_scene",
+      "final_state": null,
+      "final_next_step": null,
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "TypeError",
+      "exception_message": "argument of type 'NoneType' is not iterable"
     },
     {
       "case_id": "TC-03",
@@ -232,86 +159,13 @@
       "category": "信息模糊",
       "passed": false,
       "seed_basis": "friends_budget -> aliases=['friends_budget', '低成本快乐局'], keywords=['小吃', '桌游', '夜宵']",
-      "transcript": [
-        {
-          "turn_index": 1,
-          "user_input": "今晚想出去玩",
-          "scene_hint": null,
-          "assistant_output": "好的！是想和朋友聚聚，还是想安排约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 363
-        },
-        {
-          "turn_index": 2,
-          "user_input": "和朋友",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 276
-        },
-        {
-          "turn_index": 3,
-          "user_input": "预算别太高，省钱一点",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 385
-        },
-        {
-          "turn_index": 4,
-          "user_input": "人均120",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 271
-        },
-        {
-          "turn_index": 5,
-          "user_input": "周末",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 389
-        },
-        {
-          "turn_index": 6,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 441
-        }
-      ],
+      "transcript": [],
       "validations": [
         {
           "name": "scene",
-          "passed": true,
+          "passed": false,
           "expected": "friends",
-          "actual": "friends",
+          "actual": null,
           "details": ""
         },
         {
@@ -325,7 +179,7 @@
           "name": "final_state",
           "passed": false,
           "expected": "awaiting_selection",
-          "actual": "identifying_scene",
+          "actual": null,
           "details": ""
         },
         {
@@ -336,14 +190,14 @@
           "details": ""
         }
       ],
-      "final_scene": "friends",
+      "final_scene": null,
       "final_relationship_stage": null,
       "final_top_theme_name": null,
-      "final_state": "identifying_scene",
-      "final_next_step": "choose_scene",
+      "final_state": null,
+      "final_next_step": null,
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "DialogueTurnTimeoutError",
+      "exception_message": "Turn timed out after 20.00s: 今晚想出去玩"
     },
     {
       "case_id": "TC-04",
@@ -362,7 +216,7 @@
           "options_theme_names": [],
           "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 300
+          "duration_ms": 2495
         },
         {
           "turn_index": 2,
@@ -374,7 +228,7 @@
           "options_theme_names": [],
           "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 447
+          "duration_ms": 5970
         },
         {
           "turn_index": 3,
@@ -386,31 +240,19 @@
           "options_theme_names": [],
           "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 642
+          "duration_ms": 5792
         },
         {
           "turn_index": 4,
           "user_input": "周六下午",
           "scene_hint": null,
-          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "assistant_output": "集合点默认奥映世纪轩；搜索范围默认周边 5km，整体路线目标 6km 或 45min 内。要改集合点、距离或路线长度吗？",
           "conversation_state": "collecting_couple_context",
-          "conversation_next_step": "ask_budget",
+          "conversation_next_step": "ask_location_distance",
           "options_theme_names": [],
           "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 653
-        },
-        {
-          "turn_index": 5,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
-          "conversation_state": "collecting_couple_context",
-          "conversation_next_step": "ask_budget",
-          "options_theme_names": [],
-          "request_scene": "couple",
-          "request_relationship_stage": null,
-          "duration_ms": 279
+          "duration_ms": 9387
         }
       ],
       "validations": [
@@ -454,10 +296,10 @@
       "final_relationship_stage": null,
       "final_top_theme_name": null,
       "final_state": "collecting_couple_context",
-      "final_next_step": "ask_budget",
+      "final_next_step": "ask_location_distance",
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "TypeError",
+      "exception_message": "unhashable type: 'list'"
     },
     {
       "case_id": "TC-05",
@@ -470,69 +312,57 @@
           "turn_index": 1,
           "user_input": "纪念日想安排一下",
           "scene_hint": null,
-          "assistant_output": "好的！是想和朋友聚聚，还是想安排约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "约会安排包在我身上！ 纪念日要好好安排一下，给你准备点有仪式感的！",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_couple_feeling",
           "options_theme_names": [],
-          "request_scene": "friends",
+          "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 372
+          "duration_ms": 5389
         },
         {
           "turn_index": 2,
           "user_input": "想浪漫一点，有点仪式感",
           "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_budget",
           "options_theme_names": [],
-          "request_scene": "friends",
+          "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 402
+          "duration_ms": 3219
         },
         {
           "turn_index": 3,
           "user_input": "人均520",
           "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "安排在什么时候比较好呢？周末下午，还是晚上？",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_time",
           "options_theme_names": [],
-          "request_scene": "friends",
+          "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 284
+          "duration_ms": 4454
         },
         {
           "turn_index": 4,
           "user_input": "周末晚上",
           "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "集合点默认奥映世纪轩；搜索范围默认周边 5km，整体路线目标 6km 或 45min 内。要改集合点、距离或路线长度吗？",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_location_distance",
           "options_theme_names": [],
-          "request_scene": "friends",
+          "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 373
-        },
-        {
-          "turn_index": 5,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 518
+          "duration_ms": 7901
         }
       ],
       "validations": [
         {
           "name": "scene",
-          "passed": false,
+          "passed": true,
           "expected": "couple",
-          "actual": "friends",
+          "actual": "couple",
           "details": ""
         },
         {
@@ -553,7 +383,7 @@
           "name": "final_state",
           "passed": false,
           "expected": "awaiting_selection",
-          "actual": "identifying_scene",
+          "actual": "collecting_couple_context",
           "details": ""
         },
         {
@@ -564,14 +394,14 @@
           "details": ""
         }
       ],
-      "final_scene": "friends",
+      "final_scene": "couple",
       "final_relationship_stage": null,
       "final_top_theme_name": null,
-      "final_state": "identifying_scene",
-      "final_next_step": "choose_scene",
+      "final_state": "collecting_couple_context",
+      "final_next_step": "ask_location_distance",
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "TypeError",
+      "exception_message": "unhashable type: 'list'"
     },
     {
       "case_id": "TC-06",
@@ -590,63 +420,51 @@
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 345
+          "duration_ms": 5696
         },
         {
           "turn_index": 2,
           "user_input": "想找个安静点的地方缓和一下",
           "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "好的，约会安排！约会安排包在我身上！",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_couple_feeling",
           "options_theme_names": [],
-          "request_scene": "friends",
+          "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 487
+          "duration_ms": 4403
         },
         {
           "turn_index": 3,
           "user_input": "人均280",
           "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "安排在什么时候比较好呢？周末下午，还是晚上？",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_time",
           "options_theme_names": [],
-          "request_scene": "friends",
+          "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 593
+          "duration_ms": 4605
         },
         {
           "turn_index": 4,
           "user_input": "周末",
           "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "集合点默认奥映世纪轩；搜索范围默认周边 5km，整体路线目标 6km 或 45min 内。要改集合点、距离或路线长度吗？",
+          "conversation_state": "collecting_couple_context",
+          "conversation_next_step": "ask_location_distance",
           "options_theme_names": [],
-          "request_scene": "friends",
+          "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 422
-        },
-        {
-          "turn_index": 5,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 406
+          "duration_ms": 6747
         }
       ],
       "validations": [
         {
           "name": "scene",
-          "passed": false,
+          "passed": true,
           "expected": "couple",
-          "actual": "friends",
+          "actual": "couple",
           "details": ""
         },
         {
@@ -667,7 +485,7 @@
           "name": "final_state",
           "passed": false,
           "expected": "awaiting_selection",
-          "actual": "identifying_scene",
+          "actual": "collecting_couple_context",
           "details": ""
         },
         {
@@ -678,14 +496,14 @@
           "details": ""
         }
       ],
-      "final_scene": "friends",
+      "final_scene": "couple",
       "final_relationship_stage": null,
       "final_top_theme_name": null,
-      "final_state": "identifying_scene",
-      "final_next_step": "choose_scene",
+      "final_state": "collecting_couple_context",
+      "final_next_step": "ask_location_distance",
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "TypeError",
+      "exception_message": "unhashable type: 'list'"
     },
     {
       "case_id": "TC-07",
@@ -704,7 +522,7 @@
           "options_theme_names": [],
           "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 500
+          "duration_ms": 6069
         },
         {
           "turn_index": 2,
@@ -716,43 +534,7 @@
           "options_theme_names": [],
           "request_scene": "couple",
           "request_relationship_stage": null,
-          "duration_ms": 344
-        },
-        {
-          "turn_index": 3,
-          "user_input": "人均700",
-          "scene_hint": null,
-          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
-          "conversation_state": "collecting_couple_context",
-          "conversation_next_step": "ask_budget",
-          "options_theme_names": [],
-          "request_scene": "couple",
-          "request_relationship_stage": null,
-          "duration_ms": 504
-        },
-        {
-          "turn_index": 4,
-          "user_input": "周末",
-          "scene_hint": null,
-          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
-          "conversation_state": "collecting_couple_context",
-          "conversation_next_step": "ask_budget",
-          "options_theme_names": [],
-          "request_scene": "couple",
-          "request_relationship_stage": null,
-          "duration_ms": 334
-        },
-        {
-          "turn_index": 5,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "人均预算大概多少呢？我可以根据预算调整推荐。",
-          "conversation_state": "collecting_couple_context",
-          "conversation_next_step": "ask_budget",
-          "options_theme_names": [],
-          "request_scene": "couple",
-          "request_relationship_stage": null,
-          "duration_ms": 550
+          "duration_ms": 9825
         }
       ],
       "validations": [
@@ -798,8 +580,8 @@
       "final_state": "collecting_couple_context",
       "final_next_step": "ask_budget",
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "DialogueTurnTimeoutError",
+      "exception_message": "Turn timed out after 20.00s: 人均700"
     },
     {
       "case_id": "TC-08",
@@ -818,7 +600,7 @@
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 277
+          "duration_ms": 4287
         },
         {
           "turn_index": 2,
@@ -830,7 +612,7 @@
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 470
+          "duration_ms": 8146
         },
         {
           "turn_index": 3,
@@ -842,31 +624,19 @@
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 317
+          "duration_ms": 5039
         },
         {
           "turn_index": 4,
           "user_input": "周末下午",
           "scene_hint": null,
-          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "assistant_output": "集合点默认奥映世纪轩；搜索范围默认周边 5km，整体路线目标 6km 或 45min 内。要改集合点、距离或路线长度吗？",
           "conversation_state": "collecting_friends_context",
-          "conversation_next_step": "ask_mood",
+          "conversation_next_step": "ask_location_distance",
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 333
-        },
-        {
-          "turn_index": 5,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
-          "conversation_state": "collecting_friends_context",
-          "conversation_next_step": "ask_mood",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 388
+          "duration_ms": 9251
         }
       ],
       "validations": [
@@ -903,10 +673,10 @@
       "final_relationship_stage": null,
       "final_top_theme_name": null,
       "final_state": "collecting_friends_context",
-      "final_next_step": "ask_mood",
+      "final_next_step": "ask_location_distance",
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "TypeError",
+      "exception_message": "unhashable type: 'list'"
     },
     {
       "case_id": "TC-09",
@@ -919,61 +689,49 @@
           "turn_index": 1,
           "user_input": "和朋友出去玩",
           "scene_hint": null,
-          "assistant_output": "好的！是想和朋友聚聚，还是想安排约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "帮你安排朋友局没问题！ 跟我说说大概想怎么玩？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 262
+          "duration_ms": 4521
         },
         {
           "turn_index": 2,
           "user_input": "下雨天也想找个室内地方，不想太累",
           "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_mood",
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 333
+          "duration_ms": 7011
         },
         {
           "turn_index": 3,
           "user_input": "人均160",
           "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "安排在什么时候呢？今晚、明晚，还是周末？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_time",
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 275
+          "duration_ms": 5789
         },
         {
           "turn_index": 4,
           "user_input": "周末",
           "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
+          "assistant_output": "集合点默认奥映世纪轩；搜索范围默认周边 5km，整体路线目标 6km 或 45min 内。要改集合点、距离或路线长度吗？",
+          "conversation_state": "collecting_friends_context",
+          "conversation_next_step": "ask_location_distance",
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 309
-        },
-        {
-          "turn_index": 5,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "我还在确认... 是朋友聚会还是约会呢？",
-          "conversation_state": "identifying_scene",
-          "conversation_next_step": "choose_scene",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 507
+          "duration_ms": 3638
         }
       ],
       "validations": [
@@ -995,7 +753,7 @@
           "name": "final_state",
           "passed": false,
           "expected": "awaiting_selection",
-          "actual": "identifying_scene",
+          "actual": "collecting_friends_context",
           "details": ""
         },
         {
@@ -1009,11 +767,11 @@
       "final_scene": "friends",
       "final_relationship_stage": null,
       "final_top_theme_name": null,
-      "final_state": "identifying_scene",
-      "final_next_step": "choose_scene",
+      "final_state": "collecting_friends_context",
+      "final_next_step": "ask_location_distance",
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "DialogueTurnTimeoutError",
+      "exception_message": "Turn timed out after 20.00s: 默认"
     },
     {
       "case_id": "TC-10",
@@ -1032,7 +790,7 @@
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 298
+          "duration_ms": 4976
         },
         {
           "turn_index": 2,
@@ -1044,43 +802,31 @@
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 313
+          "duration_ms": 4308
         },
         {
           "turn_index": 3,
           "user_input": "人均260",
           "scene_hint": null,
-          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "assistant_output": "安排在什么时候呢？今晚、明晚，还是周末？",
           "conversation_state": "collecting_friends_context",
-          "conversation_next_step": "ask_mood",
+          "conversation_next_step": "ask_time",
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 286
+          "duration_ms": 5498
         },
         {
           "turn_index": 4,
           "user_input": "今晚",
           "scene_hint": null,
-          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
+          "assistant_output": "集合点默认奥映世纪轩；搜索范围默认周边 5km，整体路线目标 6km 或 45min 内。要改集合点、距离或路线长度吗？",
           "conversation_state": "collecting_friends_context",
-          "conversation_next_step": "ask_mood",
+          "conversation_next_step": "ask_location_distance",
           "options_theme_names": [],
           "request_scene": "friends",
           "request_relationship_stage": null,
-          "duration_ms": 313
-        },
-        {
-          "turn_index": 5,
-          "user_input": "默认",
-          "scene_hint": null,
-          "assistant_output": "今晚想要什么样的局呢？是想放松回血、热闹一下、拍照出片，还是简单聚聚聊聊天？",
-          "conversation_state": "collecting_friends_context",
-          "conversation_next_step": "ask_mood",
-          "options_theme_names": [],
-          "request_scene": "friends",
-          "request_relationship_stage": null,
-          "duration_ms": 325
+          "duration_ms": 3839
         }
       ],
       "validations": [
@@ -1117,10 +863,10 @@
       "final_relationship_stage": null,
       "final_top_theme_name": null,
       "final_state": "collecting_friends_context",
-      "final_next_step": "ask_mood",
+      "final_next_step": "ask_location_distance",
       "options_count": 0,
-      "exception_type": null,
-      "exception_message": null
+      "exception_type": "DialogueTurnTimeoutError",
+      "exception_message": "Turn timed out after 20.00s: 默认"
     }
   ],
   "theme_catalog": {
