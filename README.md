@@ -69,6 +69,8 @@ python demo_llm_understanding.py
 python -m unittest discover tests
 ```
 
+测试文件说明和专项验证入口见 [docs/testing.md](./docs/testing.md)。
+
 ### Web 应用
 
 ```bash

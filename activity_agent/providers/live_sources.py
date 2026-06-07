@@ -158,6 +158,17 @@ class AmapWebServiceClient:
         pois = payload.get("pois") or []
         return pois[0] if pois and isinstance(pois[0], dict) else None
 
+    def ip_location(self, ip: str | None = None) -> dict[str, Any]:
+        payload = self._get(
+            "/ip",
+            {
+                "ip": ip,
+                "output": "JSON",
+            },
+        )
+        self._ensure_ok(payload)
+        return payload
+
     def weather(self, city: str, extensions: str = "base") -> dict[str, Any]:
         payload = self._get(
             "/weather/weatherInfo",

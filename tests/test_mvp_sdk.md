@@ -4,7 +4,7 @@
 
 对应测试代码：
 
-- [test_mvp_sdk.py](file:///d:/meituan%20agent/tests/test_mvp_sdk.py)
+- [test_mvp_sdk.py](test_mvp_sdk.py)
 
 这个文件主要测试 SDK 和基础设施层能力，覆盖环境变量加载、LLM 客户端选择、SQLite 持久化、跨实例恢复、反馈持久化和情侣局酒店/礼物草稿等内容。
 

@@ -4,7 +4,7 @@
 
 对应测试代码：
 
-- [test_experience_cards.py](file:///d:/meituan%20agent/tests/test_experience_cards.py)
+- [test_experience_cards.py](test_experience_cards.py)
 
 这个文件主要验证“体验卡 / 玩法卡”相关能力，确保 Agent 在生成路线后，还能输出结构化的体验卡内容，并且在预约前保持安全边界。
 

@@ -4,7 +4,7 @@
 
 对应测试代码：
 
-- [test_guided_conversation.py](file:///d:/meituan%20agent/tests/test_guided_conversation.py)
+- [test_guided_conversation.py](test_guided_conversation.py)
 
 这个文件主要测试“多轮引导式对话”能力，验证 Agent 是否能通过连续聊天逐步收集上下文，并在条件足够时自动产出方案。
 

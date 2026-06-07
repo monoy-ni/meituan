@@ -4,7 +4,7 @@
 
 对应测试代码：
 
-- [test_hangzhou_itineraries.py](file:///d:/meituan%20agent/tests/test_hangzhou_itineraries.py)
+- [test_hangzhou_itineraries.py](test_hangzhou_itineraries.py)
 
 这个文件是杭州本地路线和高德能力相关测试的主文件，覆盖杭州主题规划、关键词扩展、高德地图/天气 provider、主题 POI 同步和 booking 安全边界等内容。
 

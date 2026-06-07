@@ -4,7 +4,7 @@
 
 对应测试代码：
 
-- [test_activity_agent.py](file:///d:/meituan%20agent/tests/test_activity_agent.py)
+- [test_activity_agent.py](test_activity_agent.py)
 
 这个文件是整个 `ActivityPlanningAgent` 的核心业务流程测试，覆盖从“生成方案”到“反馈收敛、改方案、预约草稿、复盘总结”的主链路。
 

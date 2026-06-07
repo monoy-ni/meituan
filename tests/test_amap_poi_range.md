@@ -4,7 +4,7 @@
 
 对应测试代码：
 
-- [test_amap_poi_range.py](file:///d:/meituan%20agent/tests/test_amap_poi_range.py)
+- [test_amap_poi_range.py](test_amap_poi_range.py)
 
 这个文件是针对“高德地图 POI 在用户给定范围内搜索美食和游乐地点”的独立测试文件。
 
