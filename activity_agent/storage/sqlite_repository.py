@@ -269,6 +269,43 @@ class SQLiteRepository:
         )
         self.connection.commit()
 
+    def upsert_supplies(self, supplies: list[Any], source: str, status: str = "ok") -> None:
+        for supply in supplies:
+            payload = asdict(supply) if is_dataclass(supply) else dict(supply)
+            self.connection.execute(
+                """
+                INSERT OR REPLACE INTO places (
+                    id, city, area_cluster, type, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload["id"],
+                    payload.get("city", "hangzhou"),
+                    payload.get("area_cluster", ""),
+                    payload.get("type", ""),
+                    _to_json(payload),
+                    _now(),
+                ),
+            )
+            self.connection.execute("DELETE FROM place_tags WHERE place_id = ?", (payload["id"],))
+            for tag in [*payload.get("tags", []), *payload.get("local_flavor_tags", [])]:
+                self.connection.execute(
+                    "INSERT INTO place_tags (place_id, tag) VALUES (?, ?)",
+                    (payload["id"], tag),
+                )
+
+        self.connection.execute(
+            "INSERT OR REPLACE INTO source_records (id, source, status, payload_json, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                f"source_{source}",
+                source,
+                status,
+                _to_json({"places": len(supplies)}),
+                _now(),
+            ),
+        )
+        self.connection.commit()
+
     def list_local_supplies(self, city: str = "hangzhou") -> list[MerchantSupply]:
         rows = self.connection.execute(
             "SELECT payload_json FROM places WHERE city = ? ORDER BY area_cluster, type, id",

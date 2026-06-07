@@ -1,38 +1,80 @@
-# 活动规划组局 Agent v1
+# 杭州活动规划智能 Agent v1.4
 
-这是一个 Python SDK 真实 MVP，不只是 demo。它把当前规则型活动规划核心升级为可持久化、可配置 LLM、可替换工具层的 Agent SDK。
+这是一个 Python SDK 真实 MVP，把规则型活动规划核心升级为可持久化、可配置 LLM、可替换工具层的 Agent SDK。支持朋友组局和情侣约会两种场景，杭州本地化数据完整覆盖。
 
-首版能力：
+## 核心能力
 
-- 朋友组局：活动 → 餐饮 → 放松/夜场 → AA/复盘。
-- 情侣约会：关系阶段识别 → 节奏化约会 → 礼物/酒店可选 → 回忆沉淀。
-- LLM 使用 OpenAI-compatible 配置，负责自然语言理解和结构化提取。
-- 当前规则模块继续作为安全底座和 LLM 降级路径。
-- SQLite 持久化 session、消息、方案、选择、反馈、预约草稿、确认记录和复盘。
-- Mock 美团工具模拟商户搜索、可预约检查、预约 hold、AA 草稿、酒店/票券/小时达草稿和确认预约。
-- 所有支付、订票、酒店、不可逆预约都必须显式确认；确认前只生成草稿。
+### 朋友组局
+- 活动 → 餐饮 → 放松/夜场 → AA/复盘 完整闭环
+- 多方案推荐 + 反馈调整
+- 预约草稿 + 确认机制
 
-## 配置
+### 情侣约会
+- 关系阶段识别（暧昧/稳定/纪念日）
+- 节奏化约会安排
+- 礼物/酒店可选
+- 回忆沉淀
 
-复制 `.env.example` 后设置环境变量，或在运行前直接设置：
+### 杭州专属
+- 8个区域集群（河坊街/西湖/桥西/龙坞等）
+- 6套预设主题模板
+- 70+本地化供给（景点/餐厅/活动）
+- 真实天气/路线提示（mock数据）
+
+## 技术特性
+
+- **LLM 优先**：OpenAI-compatible 接口，负责自然语言理解
+- **智能降级**：无 LLM 时自动回退规则匹配
+- **SQLite 持久化**：session/消息/方案/选择/反馈/预约/复盘完整记录
+- **Mock 工具层**：模拟美团商户搜索、预约检查、AA 草稿等
+- **安全边界**：支付/订票/酒店不可逆操作必须显式确认
+
+## 快速开始
+
+### 环境配置
 
 ```bash
+# 复制配置
+cp .env.example .env
+
+# 编辑 .env 设置变量
 ACTIVITY_AGENT_LLM_BASE_URL=https://api.openai.com/v1
-ACTIVITY_AGENT_LLM_API_KEY=
+ACTIVITY_AGENT_LLM_API_KEY=your-api-key
 ACTIVITY_AGENT_LLM_MODEL=gpt-4.1-mini
-ACTIVITY_AGENT_LLM_TEMPERATURE=0.2
-ACTIVITY_AGENT_LLM_TIMEOUT_SECONDS=20
 ACTIVITY_AGENT_STORAGE_PATH=./activity_agent.sqlite3
-ACTIVITY_AGENT_TOOL_MODE=mock
+ACTIVITY_AGENT_DATA_MODE=hybrid
+ACTIVITY_AGENT_MAP_PROVIDER=amap
+AMAP_API_KEY=your-amap-web-service-key
+AMAP_CITY=330100
+AMAP_POI_KEYWORDS=美食,景点,博物馆,手作,茶馆,酒吧,桌游,密室
+HANGZHOU_OPEN_DATA_API_URL=optional-official-dataset-api-url
+HANGZHOU_OPEN_DATA_APP_KEY=optional-app-key
+HANGZHOU_OPEN_DATA_APP_SECRET=optional-app-secret
+HANGZHOU_OPEN_DATA_TOKEN=optional-bearer-token
 ```
 
-如果没有 `ACTIVITY_AGENT_LLM_API_KEY`，SDK 会使用 `MockLLMClient`，仍然可以完整跑通本地 MVP 闭环。
-
-## 快速运行
+### 运行示例
 
 ```bash
+# SDK 示例
 python demo.py
-python -m unittest
+
+# 对话式交互
+python demo_conversational.py
+
+# LLM 理解演示
+python demo_llm_understanding.py
+
+# 运行测试
+python -m unittest discover tests
+```
+
+### Web 应用
+
+```bash
+# Windows 一键启动
+start-backend.bat    # 后端：http://localhost:8000
+start-frontend.bat   # 前端：http://localhost:3000
 ```
 
 ## SDK 使用示例
@@ -41,171 +83,157 @@ python -m unittest
 from activity_agent import ActivityPlanningAgent
 from activity_agent.domain import FeedbackStatus, InviteFeedback
 
+# 初始化 Agent
 agent = ActivityPlanningAgent.from_env()
-session = agent.start_session(user_id="u1")
+session = agent.start_session(user_id="user_001")
 
-response = agent.chat(session.id, "今晚有点无聊，想叫朋友出来，预算人均200，别太远")
-print(response.share_cards[0])
+# 聊天规划
+response = agent.chat(session.id, "杭州周末不想查攻略，预算人均300")
+print(f"推荐方案: {[opt.theme_name for opt in response.options]}")
 
+# 选择方案
 agent.select_option(session.id, response.options[0].id)
 
+# 提交朋友反馈
 feedback = [
-    InviteFeedback("小王", FeedbackStatus.JOIN, budget_feedback=180),
-    InviteFeedback("小李", FeedbackStatus.LATE, time_feedback="20:30后到"),
+    InviteFeedback("小王", FeedbackStatus.JOIN, budget_feedback=250),
+    InviteFeedback("小李", FeedbackStatus.LATE, time_feedback="19:30后到"),
     InviteFeedback("小陈", FeedbackStatus.JOIN, dietary_or_boundary_constraints=["不喝酒"]),
 ]
 revised = agent.submit_feedback(session.id, feedback)
 
+# 创建预约草稿
 draft = agent.create_booking_draft(session.id, revised.options[0].id)
+
+# 确认预约
 confirmation = agent.confirm_booking(session.id, draft.id, confirm=True)
 
+# 活动复盘
 review = agent.create_review(
     session.id,
-    actual_cost_per_person=166,
+    actual_cost_per_person=268,
     attendance=4,
-    ratings={revised.options[0].timeline_items[1].merchant_name: 4.8},
+    ratings={"河坊街老底子小吃": 4.8, "桥西杭帮菜": 4.6},
 )
 ```
 
-## 公共接口
+## 对话式交互
 
-- `ActivityPlanningAgent.from_env()`
-- `agent.start_session(user_id: str | None = None) -> Session`
-- `agent.chat(session_id: str, text: str) -> AgentResponse`
-- `agent.select_option(session_id: str, option_id: str) -> AgentResponse`
-- `agent.submit_feedback(session_id: str, feedback: list[InviteFeedback]) -> AgentResponse`
-- `agent.create_booking_draft(session_id: str, option_id: str, pay_mode: PayMode | None = None) -> BookingDraft`
-- `agent.confirm_booking(session_id: str, draft_id: str, confirm: bool) -> BookingConfirmation`
-- `agent.create_review(session_id: str, actual_cost_per_person: int, attendance: int, ratings: dict, complaints: list[str] | None = None) -> AfterActionReview`
+新增 `chat_with_guidance()` 接口实现自然对话流程：
 
-为兼容早期测试，仍保留：
+```python
+agent = ActivityPlanningAgent.from_env()
+session = agent.start_session()
 
-- `agent.plan(text)`
-- `agent.render_share_card(option, request)`
-- `agent.create_booking_draft(option, request)`
-- `agent.create_review(option, actual_cost_per_person, attendance, ratings)`
+# 自动识别群体，多轮收集需求
+response1 = agent.chat_with_guidance(session.id, "周末想在杭州找地方玩")
+response2 = agent.chat_with_guidance(session.id, "大概人均300左右")
+response3 = agent.chat_with_guidance(session.id, "3个人吧，朋友聚会")
+
+# 一键选择+预约
+draft, confirmation = agent.select_and_book(session.id, response3.options[0].id)
+```
 
 ## 目录结构
 
-```text
-activity_agent/
-  agent.py                         # SDK facade
-  config.py                        # LLM / storage / tool settings
-  domain/models.py                 # dataclass + enum 数据对象
-  data/supply_catalog.py           # mock 本地供给
-  llm/
-    client.py                      # OpenAI-compatible + Mock LLM clients
-    orchestrator.py                # LLM JSON understanding layer
-  tools/
-    mock_meituan.py                # mock 美团工具 API
-  storage/
-    sqlite_repository.py           # SQLite persistence
-  modules/
-    intent_router.py
-    context_collector.py
-    theme_planner.py
-    supply_matcher.py
-    itinerary_composer.py
-    share_card_generator.py
-    feedback_resolver.py
-    booking_orchestrator.py
-    review_memory.py
-tests/
-  test_activity_agent.py           # 原核心回归测试
-  test_mvp_sdk.py                  # SDK / LLM / SQLite / mock 工具测试
 ```
+meituan-agent/
+├── activity_agent/              # SDK 核心
+│   ├── agent.py                # SDK 门面
+│   ├── config.py               # 配置管理
+│   ├── domain/
+│   │   └── models.py          # 数据模型
+│   ├── data/
+│   │   ├── supply_catalog.py  # 供给数据
+│   │   └── hangzhou_catalog.py # 杭州主题/集群
+│   ├── modules/               # 业务模块
+│   │   ├── intent_router.py   # 意图路由
+│   │   ├── context_collector.py # 上下文收集
+│   │   ├── theme_planner.py   # 主题规划
+│   │   ├── supply_matcher.py  # 供给匹配
+│   │   ├── itinerary_composer.py # 行程编排
+│   │   ├── feedback_resolver.py # 反馈处理
+│   │   ├── booking_orchestrator.py # 预约编排
+│   │   ├── dialogue_manager.py # 对话管理
+│   │   └── ...
+│   ├── providers/             # 数据提供者
+│   ├── tools/                 # 工具层
+│   ├── storage/               # 存储层
+│   └── llm/                   # LLM 层
+├── backend/                   # FastAPI 后端
+├── frontend/                  # React 前端
+├── tests/                     # 单元测试
+└── demo*.py                   # 示例脚本
+```
+
+## 核心模块
+
+### 1. IntentRouter（意图路由）
+识别用户意图（PLAN/ADJUST/FEEDBACK/BOOKING/REVIEW）和场景（FRIENDS/COUPLE）
+
+### 2. ContextCollector（上下文收集）
+从自然语言提取预算、时间、人数、偏好等结构化请求
+
+### 3. ThemePlanner（主题规划）
+根据场景和偏好匹配合适的杭州本地化主题
+
+### 4. SupplyMatcher（供给匹配）
+从杭州供给库中匹配符合主题槽位的商户
+
+### 5. ItineraryComposer（行程编排）
+将匹配的供给组合成完整行程方案
+
+### 6. FeedbackResolver（反馈处理）
+根据朋友/参与者反馈调整方案
+
+### 7. BookingOrchestrator（预约编排）
+创建预约草稿、确认预约（mock 实现）
+
+## 杭州数据
+
+| 类型 | 数量 | 说明 |
+|------|------|------|
+| 区域集群 | 8 | 河坊街/西湖/桥西/龙坞/湘湖等 |
+| 主题模板 | 6 | 老城烟火/运河Citywalk/西湖轻松/龙坞近郊/美食巡游/雨天室内 |
+| 供给数据 | 70+ | 景点/餐厅/活动/放松/打卡点 |
+
+详细数据说明见 [data_folder_explanation.md](./data_folder_explanation.md)
 
 ## 安全边界
 
-- `create_booking_draft()` 只生成 `pending_user_confirmation` 草稿、hold 和 confirm token。
-- `confirm_booking(..., confirm=False)` 不会产生任何 mock 订单。
-- 只有 `confirm_booking(..., confirm=True)` 才会返回 mock order/reservation/ticket/hotel/delivery ids。
-- Mock 工具层不做真实支付、真实出票、真实酒店下单或真实配送。
+- `create_booking_draft()` 只生成草稿和 hold token
+- `confirm_booking(..., confirm=False)` 不产生订单
+- 只有显式 `confirm=True` 才返回 mock 订单ID
+- Mock 层不做真实支付/出票/酒店下单
 
-## 对话式交互（新功能）
+## 设计文档
 
-新增 `chat_with_guidance()` 接口实现完整的对话式流程：
+详细设计文档见 [DESIGN.md](./DESIGN.md)，包含：
+- Planning 策略
+- 工具调用链路
+- 异常处理机制
+- 系统架构
+- 数据流程
 
-1. **自动识别群体** - 通过对话内容判断是朋友局还是约会
-2. **多轮引导收集需求** - 自然地逐步询问预算、时间、氛围等
-3. **智能关系推断** - 情侣场景不直接问关系阶段，通过对话推断
-   - "怕尴尬" → 暧昧/追求中
-   - "纪念日" → 纪念日模式
-   - "老夫老妻" → 稳定情侣
-4. **多方案推荐** - 收集完需求后生成 3 个方案
-5. **一键预约** - `select_and_book()` 自动完成选择到下单
+## API 文档
 
-### LLM 智能理解（升级）
+启动后端后访问 http://localhost:8000/docs 查看完整 OpenAPI 文档。
 
-不再依赖硬编码关键字匹配，改用 LLM 进行自然语言理解：
+## 公共接口
 
-- **LLM 优先** - 有 API Key 时使用 OpenAI 兼容的 LLM 深度理解
-- **智能降级** - 没有 LLM 时自动回退到规则匹配
-- **置信度评估** - 对理解结果给出置信度，把握不大时会确认
-- **上下文感知** - 结合历史对话理解当前意图
-
-运行对话式演示：
-```bash
-python demo_conversational.py
-python demo_llm_understanding.py  # 查看 LLM 理解能力
+```python
+ActivityPlanningAgent.from_env()
+agent.start_session(user_id: str | None = None) -> Session
+agent.chat(session_id: str, text: str) -> AgentResponse
+agent.chat_with_guidance(session_id: str, text: str) -> AgentResponse
+agent.select_option(session_id: str, option_id: str) -> AgentResponse
+agent.submit_feedback(session_id: str, feedback: list[InviteFeedback]) -> AgentResponse
+agent.select_and_book(session_id: str, option_id: str) -> tuple[BookingDraft, BookingConfirmation]
+agent.create_booking_draft(...) -> BookingDraft
+agent.confirm_booking(...) -> BookingConfirmation
+agent.create_review(...) -> AfterActionReview
 ```
 
-## Web 前端应用
+## 许可证
 
-我们提供了完整的 React 前端界面，让你可以通过浏览器与智能 Agent 交互！
-
-### 项目结构
-```
-meituan-agent/
-├── backend/              # FastAPI 后端
-│   ├── main.py          # API 服务
-│   └── requirements.txt # Python 依赖
-└── frontend/            # React 前端
-    ├── src/
-    │   ├── components/  # React 组件
-    │   ├── App.js      # 主应用
-    │   └── api.js      # API 调用
-    └── package.json    # Node 依赖
-```
-
-### 快速启动
-
-#### Windows 用户
-1. 启动后端服务（需要新的终端窗口）：
-```cmd
-start-backend.bat
-```
-
-2. 启动前端服务（需要另一个终端窗口）：
-```cmd
-start-frontend.bat
-```
-
-#### 手动启动
-
-**1. 启动后端：**
-```bash
-cd backend
-pip install -r requirements.txt
-python main.py
-```
-后端将运行在 http://localhost:8000
-
-**2. 启动前端：**
-```bash
-cd frontend
-npm install
-npm start
-```
-前端将运行在 http://localhost:3000
-
-### 功能特点
-- 💬 多轮对话界面 - 自然语言交互
-- 🎨 活动方案展示 - 美观的卡片布局
-- 📋 预约流程 - 从选择到确认的完整流程
-- 📱 响应式设计 - 支持手机和桌面端
-- 🔄 实时交互 - 流畅的用户体验
-
-### API 文档
-启动后端后，访问 http://localhost:8000/docs 查看完整的 API 文档。
-
+MIT

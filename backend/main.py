@@ -315,7 +315,7 @@ def refresh_itinerary(option_id: str, request: RefreshItineraryRequest) -> dict[
 
 @app.post("/api/providers/sync")
 def sync_providers(request: ProviderSyncRequest) -> dict[str, Any]:
-    result = agent.sync_provider_data(request.city)
+    result = agent.sync_provider_data(request.city, keywords=request.keywords, area=request.area)
     return {
         **result,
         "keywords": request.keywords,
@@ -378,5 +378,9 @@ def get_conversation_state(session_id: str) -> dict[str, str]:
 if __name__ == "__main__":
     import uvicorn
 
-    print("Starting Hangzhou itinerary Agent API on http://0.0.0.0:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+
+    print(f"Starting Hangzhou itinerary Agent API on http://{host}:{port}")
+    print(f"API 文档: http://{host}:{port}/docs")
+    uvicorn.run(app, host=host, port=port)

@@ -5,6 +5,62 @@ import unittest
 from activity_agent import ActivityPlanningAgent
 from activity_agent.config import AgentSettings, LLMSettings, StorageSettings, ToolSettings
 from activity_agent.domain import PayMode, TimelineType
+from activity_agent.providers import AmapMapDataProvider, AmapWeatherProvider, HybridLiveDataProvider
+from activity_agent.storage.sqlite_repository import SQLiteRepository
+
+
+class FakeAmapClient:
+    def __init__(self) -> None:
+        self.poi_calls = []
+        self.route_calls = []
+
+    def search_pois(self, city: str, keywords: str, types: str = "", offset: int = 20, page: int = 1):
+        self.poi_calls.append({"city": city, "keywords": keywords, "types": types, "offset": offset, "page": page})
+        return {
+            "status": "1",
+            "pois": [
+                {
+                    "id": "B0FFAKE001",
+                    "name": "测试茶馆",
+                    "type": "餐饮服务;茶艺馆;茶艺馆",
+                    "typecode": "050600",
+                    "address": "西湖湖滨",
+                    "adname": "上城区",
+                    "location": "120.1608,30.2557",
+                    "biz_ext": {"cost": "88"},
+                }
+            ],
+        }
+
+    def weather(self, city: str, extensions: str = "base"):
+        return {
+            "status": "1",
+            "lives": [
+                {
+                    "city": "杭州市",
+                    "weather": "多云",
+                    "temperature": "26",
+                    "humidity": "61",
+                    "winddirection": "东",
+                    "windpower": "3",
+                    "reporttime": "2026-06-07 15:00:00",
+                }
+            ],
+        }
+
+    def walking_route(self, origin: str, destination: str):
+        self.route_calls.append((origin, destination))
+        return {
+            "status": "1",
+            "route": {
+                "paths": [
+                    {
+                        "distance": "2400",
+                        "duration": "1800",
+                    }
+                ]
+            },
+        }
 
 
 class HangzhouItineraryTest(unittest.TestCase):
@@ -81,6 +137,46 @@ class HangzhouItineraryTest(unittest.TestCase):
                 self.assertIn("seed", refreshed["message"])
             finally:
                 agent.close()
+
+    def test_amap_route_and_weather_providers_use_live_payloads(self) -> None:
+        repository = SQLiteRepository(":memory:")
+        try:
+            amap_client = FakeAmapClient()
+            route = AmapMapDataProvider(amap_client, repository).route_summary(
+                ["hefang_old_town", "canal_qiaoxi"]
+            )
+            weather = AmapWeatherProvider(amap_client, "330100").weather_hint("hangzhou")
+
+            self.assertEqual(route.status, "live")
+            self.assertEqual(route.data_confidence, "live")
+            self.assertIn("AMAP walking route", route.message)
+            self.assertEqual(weather.status, "live")
+            self.assertEqual(weather.data_confidence, "live")
+            self.assertIn("AMAP live weather", weather.message)
+            self.assertEqual(len(amap_client.route_calls), 1)
+        finally:
+            repository.close()
+
+    def test_hybrid_provider_syncs_amap_pois_into_catalog(self) -> None:
+        repository = SQLiteRepository(":memory:")
+        try:
+            settings = ToolSettings(
+                data_mode="hybrid",
+                amap_city="330100",
+                amap_poi_keywords="茶馆",
+            )
+            provider = HybridLiveDataProvider(repository, settings, amap_client=FakeAmapClient())
+
+            result = provider.sync_live_sources("hangzhou", keywords=["茶馆"])
+            live_supplies = [supply for supply in provider.list_supplies("hangzhou") if supply.source == "amap_poi"]
+
+            self.assertEqual(result["status"], "live_synced")
+            self.assertEqual(result["sources"]["amap_poi"]["places"], 1)
+            self.assertEqual(len(live_supplies), 1)
+            self.assertEqual(live_supplies[0].data_confidence, "live")
+            self.assertEqual(live_supplies[0].source_id, "B0FFAKE001")
+        finally:
+            repository.close()
 
     def test_booking_draft_stays_safe_before_confirmation(self) -> None:
         result = self.agent.plan("杭州老城烟火局，人均200，不想查攻略")
