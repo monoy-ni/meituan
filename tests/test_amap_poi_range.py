@@ -74,6 +74,45 @@ class FakeAmapRangeClient:
         return {"status": "1", "route": {"paths": [{"distance": "1800", "duration": "1200"}]}}
 
 
+class FakeAmapListCostClient(FakeAmapRangeClient):
+    def search_pois_around(
+        self,
+        location: str,
+        radius_m: int,
+        keywords: str,
+        city: str = "",
+        types: str = "",
+        offset: int = 20,
+        page: int = 1,
+    ):
+        self.around_calls.append(
+            {
+                "location": location,
+                "radius_m": radius_m,
+                "keywords": keywords,
+                "city": city,
+                "types": types,
+                "offset": offset,
+                "page": page,
+            }
+        )
+        return {
+            "status": "1",
+            "pois": [
+                {
+                    "id": "B0FLIST001",
+                    "name": "测试列表价格烧烤店",
+                    "type": "餐饮服务;中餐厅;烧烤",
+                    "typecode": "050100",
+                    "address": "奥映世纪轩周边",
+                    "adname": "萧山区",
+                    "location": "120.2430,30.2432",
+                    "biz_ext": {"cost": ["98", "108"]},
+                }
+            ],
+        }
+
+
 class AmapPoiRangeTest(unittest.TestCase):
     def test_provider_searches_food_and_fun_within_user_radius(self) -> None:
         repository = SQLiteRepository(":memory:")
@@ -138,6 +177,33 @@ class AmapPoiRangeTest(unittest.TestCase):
             self.assertTrue(all(call["radius_m"] == 5000 for call in amap_client.around_calls))
             self.assertTrue(response.options[0].search_keywords)
             self.assertEqual(response.options[0].route_plan["origin"]["name"], "奥映世纪轩")
+        finally:
+            repository.close()
+
+    def test_provider_handles_list_cost_from_amap_without_500(self) -> None:
+        repository = SQLiteRepository(":memory:")
+        try:
+            amap_client = FakeAmapListCostClient()
+            provider = HybridLiveDataProvider(
+                repository,
+                ToolSettings(data_mode="hybrid", amap_city="330100"),
+                amap_client=amap_client,
+            )
+
+            result = provider.sync_theme_pois(
+                city="hangzhou",
+                keywords=["烧烤"],
+                origin_longitude=120.2425,
+                origin_latitude=30.2426,
+                radius_km=5.0,
+            )
+
+            live_supplies = [supply for supply in provider.list_supplies("hangzhou") if supply.source == "amap_poi"]
+
+            self.assertEqual(result["status"], "live_synced")
+            self.assertEqual(len(live_supplies), 1)
+            self.assertEqual(live_supplies[0].price, 98)
+            self.assertEqual(live_supplies[0].name, "测试列表价格烧烤店")
         finally:
             repository.close()
 

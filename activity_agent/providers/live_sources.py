@@ -808,7 +808,24 @@ def _first_price(record: dict[str, Any], keys: tuple[str, ...]) -> int | None:
 
 
 def _parse_price(value: Any) -> int | None:
-    if value in {None, ""}:
+    if value is None or value == "":
+        return None
+    if isinstance(value, (list, tuple, set)):
+        for item in value:
+            parsed = _parse_price(item)
+            if parsed is not None:
+                return parsed
+        return None
+    if isinstance(value, dict):
+        for key in ("cost", "price", "amount", "avg_price", "min_price", "max_price", "value"):
+            if key in value:
+                parsed = _parse_price(value.get(key))
+                if parsed is not None:
+                    return parsed
+        for item in value.values():
+            parsed = _parse_price(item)
+            if parsed is not None:
+                return parsed
         return None
     match = re.search(r"\d+(?:\.\d+)?", str(value))
     if not match:
